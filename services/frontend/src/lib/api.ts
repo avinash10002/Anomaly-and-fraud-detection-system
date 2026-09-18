@@ -1,15 +1,59 @@
 import { MOCK_ANOMALIES, MOCK_IMAGES, MOCK_PROJECTS, replaceAnomalies } from "./mock-data";
 import type {
+  AdministrativeHierarchy,
   AnomalyFlag,
+  AuditAssistantResponse,
+  DashboardStats,
+  FinancialAnalysis,
+  InspectionCapture,
   Project,
+  ProjectCitation,
+  ProjectDetail,
+  ProjectFilters,
   ProjectImage,
+  ProjectListResult,
+  ProjectType,
   ProjectWithRisk,
   ReviewStatus,
+  RiskBreakdown,
   RiskLevel,
+  SimilarProject,
+  UserRole,
 } from "./types";
 
-/** Simulated network latency — set to 0 when wiring a real API. */
-const MOCK_DELAY_MS = 40;
+/** Human-readable MPLADS-style categories derived from project type */
+export const TYPE_TO_CATEGORY: Record<ProjectType, string> = {
+  road: "Roads and Bridges",
+  building: "Community Infrastructure",
+  park: "Sports / Recreation",
+  other: "Other Works",
+};
+
+export const PROJECT_CATEGORIES = [
+  "Roads and Bridges",
+  "Community Infrastructure",
+  "Sports / Recreation",
+  "Education",
+  "Health",
+  "Water and Sanitation",
+  "Other Works",
+] as const;
+
+const CATEGORY_TO_TYPE: Record<string, ProjectType> = {
+  "roads and bridges": "road",
+  "community infrastructure": "building",
+  "sports / recreation": "park",
+  education: "building",
+  health: "building",
+  "water and sanitation": "other",
+  "other works": "other",
+  "normal/others": "other",
+};
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080/api/v1";
+
+/** Simulated fallback delay for local mock data */
+const MOCK_DELAY_MS = 20;
 
 async function delay<T>(value: T): Promise<T> {
   if (MOCK_DELAY_MS <= 0) return value;
@@ -41,39 +85,688 @@ function withRisk(project: Project, flags = MOCK_ANOMALIES): ProjectWithRisk {
   };
 }
 
-export type ProjectFilters = {
-  district?: string;
-  type?: string;
-  riskLevel?: RiskLevel | "";
+// ── Mock enrichment (district → state/constituency) ─────────────────────────
+
+const DEMO_PROJECT_IDS = new Set([
+  "ce266c84-add9-59bb-b4ac-9fe61e2bf98d",
+  "feaa76a4-cbf6-5482-8e84-ecb5600c3f9d",
+  "fa527ded-f8b7-518e-9ba0-72556cf0f7c9",
+  "b503d0a8-c311-5409-b365-5ade19ce3e2f",
+  "e7becbea-467f-5e0d-a910-fe1e740972ba",
+]);
+
+const DISTRICT_META: Record<string, { state: string; constituency: string }> = {
+  Churu: { state: "Rajasthan", constituency: "CHURU" },
+  Dausa: { state: "Rajasthan", constituency: "Dausa" },
+  Basti: { state: "Uttar Pradesh", constituency: "BASTI" },
+  Gorakhpur: { state: "Uttar Pradesh", constituency: "GORAKHPUR" },
+  Jamui: { state: "Bihar", constituency: "JAMUI(SC)" },
+  Dewas: { state: "Madhya Pradesh", constituency: "DEWAS(SC)" },
+  Rewa: { state: "Madhya Pradesh", constituency: "Rewa" },
+  Satna: { state: "Madhya Pradesh", constituency: "Satna" },
+  Sidhi: { state: "Madhya Pradesh", constituency: "Sidhi" },
+  Nagpur: { state: "Maharashtra", constituency: "Nagpur South" },
 };
 
-/**
- * Fetch all projects enriched with risk metadata.
- * Swap the body for `fetch(`${API_BASE}/projects`)` later.
- */
-export async function getProjects(filters: ProjectFilters = {}): Promise<ProjectWithRisk[]> {
-  let list = MOCK_PROJECTS.map((p) => withRisk(p));
+function categoryFromType(type: ProjectType): string {
+  return TYPE_TO_CATEGORY[type] || "Other Works";
+}
 
-  if (filters.district) {
-    list = list.filter((p) => p.district === filters.district);
+function resolveCategory(raw: string | undefined, type: ProjectType): string {
+  const cat = (raw || "").trim();
+  if (!cat || cat.toLowerCase() === "normal/others") {
+    return categoryFromType(type);
   }
-  if (filters.type) {
-    list = list.filter((p) => p.type === filters.type);
+  return cat;
+}
+
+function matchesCategoryFilter(
+  project: { category?: string; type: ProjectType },
+  filterCategory: string
+): boolean {
+  const wanted = filterCategory.toLowerCase();
+  if ((project.category || "").toLowerCase() === wanted) return true;
+  const mappedType = CATEGORY_TO_TYPE[wanted];
+  return Boolean(mappedType && project.type === mappedType);
+}
+
+function enrichMockProject(p: Project): Project {
+  const meta = DISTRICT_META[p.district];
+  const type = p.type;
+  return {
+    ...p,
+    state: p.state || meta?.state,
+    constituency: p.constituency || meta?.constituency || p.district,
+    category: resolveCategory(p.category, type),
+    workDescription: p.workDescription || p.title,
+    sourceType:
+      p.sourceType ||
+      (DEMO_PROJECT_IDS.has(p.id) ? "DEMO_SYNTHETIC" : "MPLADS_HISTORIC"),
+  };
+}
+
+function buildMockHierarchy(): AdministrativeHierarchy {
+  const constituenciesByState: Record<string, string[]> = {};
+  for (const p of MOCK_PROJECTS.map(enrichMockProject)) {
+    const st = p.state;
+    const con = p.constituency;
+    if (!st || !con) continue;
+    if (!constituenciesByState[st]) constituenciesByState[st] = [];
+    if (!constituenciesByState[st].includes(con)) {
+      constituenciesByState[st].push(con);
+    }
+  }
+  for (const st of Object.keys(constituenciesByState)) {
+    constituenciesByState[st].sort();
+  }
+  return {
+    states: Object.keys(constituenciesByState).sort(),
+    constituenciesByState,
+  };
+}
+
+function toCountRecord(
+  items: Array<{ status?: string; level?: string; count: number }> | Record<string, number> | undefined,
+  key: "status" | "level"
+): Record<string, number> {
+  if (!items) return {};
+  if (!Array.isArray(items)) return items;
+  const out: Record<string, number> = {};
+  for (const item of items) {
+    const k = (item[key] || "").toLowerCase();
+    if (k) out[k] = item.count;
+  }
+  return out;
+}
+
+function normalizeHierarchy(raw: unknown): AdministrativeHierarchy {
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    const obj = raw as AdministrativeHierarchy;
+    if (Array.isArray(obj.states) && obj.constituenciesByState) {
+      return obj;
+    }
+  }
+  if (Array.isArray(raw)) {
+    const constituenciesByState: Record<string, string[]> = {};
+    for (const entry of raw as Array<{
+      state: string;
+      constituencies?: Array<{ constituency: string } | string>;
+    }>) {
+      const names = (entry.constituencies || []).map((c) =>
+        typeof c === "string" ? c : c.constituency
+      );
+      constituenciesByState[entry.state] = names.sort();
+    }
+    return {
+      states: Object.keys(constituenciesByState).sort(),
+      constituenciesByState,
+    };
+  }
+  return buildMockHierarchy();
+}
+
+// ── Snake to Camel Mappers ──────────────────────────────────────────────────
+
+function inferProjectType(item: any): ProjectType {
+  if (item.type === "road" || item.type === "building" || item.type === "park" || item.type === "other") {
+    return item.type;
+  }
+  const cat = String(item.category || item.title || item.work || "").toLowerCase();
+  if (cat.includes("road") || cat.includes("bridge") || cat.includes("pathway") || cat.includes("flyover")) {
+    return "road";
+  }
+  if (
+    cat.includes("building") ||
+    cat.includes("infra") ||
+    cat.includes("sitting") ||
+    cat.includes("school") ||
+    cat.includes("health") ||
+    cat.includes("stadium")
+  ) {
+    return "building";
+  }
+  if (cat.includes("sport") || cat.includes("park") || cat.includes("playfield") || cat.includes("recreation")) {
+    return "park";
+  }
+  return "other";
+}
+
+function toCoord(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() !== "") {
+    const n = Number(value);
+    if (Number.isFinite(n)) return n;
+  }
+  return undefined;
+}
+
+function mapProjectSummary(item: any): ProjectWithRisk {
+  const type = inferProjectType(item);
+  return {
+    id: item.id,
+    title: item.title,
+    type,
+    sanctionDate: item.sanction_date || item.sanctionDate || "",
+    completionDate: item.completion_date || item.completionDate || null,
+    cost: item.allocation ?? item.cost ?? 0,
+    lat: toCoord(item.lat),
+    lng: toCoord(item.lng),
+    district: item.district || "",
+    state: item.state,
+    constituency: item.constituency,
+    workDescription: item.work_description || item.workDescription || item.work,
+    category: resolveCategory(item.category, type),
+    sourceType: item.source_type || item.sourceType,
+    contractorName: item.contractor_name || item.contractorName || "Unassigned",
+    mpName: item.mp_name || item.mpName || "Unassigned",
+    status: (item.status?.toLowerCase() || "ongoing") as Project["status"],
+    riskScore: item.risk_score ?? item.riskScore,
+    riskLevel: (item.risk_level || item.riskLevel || "low") as RiskLevel,
+    anomalyCount: item.anomaly_count ?? item.anomalyCount ?? 0,
+  };
+}
+
+function mapProjectDetail(item: any): ProjectDetail {
+  const base = mapProjectSummary(item);
+
+  const financialAnalysis: FinancialAnalysis | undefined = item.financial_analysis
+    ? {
+        allocation: item.financial_analysis.allocation,
+        estimatedMin: item.financial_analysis.estimated_min,
+        estimatedMax: item.financial_analysis.estimated_max,
+        deviationPercent: item.financial_analysis.deviation_percent,
+        deviationReason: item.financial_analysis.deviation_reason,
+        categoryMedian: item.financial_analysis.category_median,
+      }
+    : undefined;
+
+  const similarProjects: SimilarProject[] | undefined = item.similar_projects
+    ? item.similar_projects.map((sp: any) => ({
+        projectId: sp.project_id,
+        title: sp.title,
+        similarityScore: sp.similarity_score,
+        overlapReason: sp.overlap_reason,
+        state: sp.state,
+        constituency: sp.constituency,
+      }))
+    : undefined;
+
+  const inspectionCaptures: InspectionCapture[] | undefined = item.inspection_captures
+    ? item.inspection_captures.map((ic: any) => ({
+        id: ic.id,
+        captureDate: ic.capture_date,
+        label: ic.label,
+        sourceType: ic.source_type,
+        imageUrl: ic.image_url,
+        defectSeverity: ic.defect_severity,
+        defectDescription: ic.defect_description,
+      }))
+    : undefined;
+
+  const riskBreakdown: RiskBreakdown | undefined = item.risk_breakdown
+    ? {
+        financialScore: item.risk_breakdown.financial_score,
+        nlpScore: item.risk_breakdown.nlp_score,
+        imageScore: item.risk_breakdown.image_score,
+        overallScore: item.risk_breakdown.overall_score,
+        riskLevel: item.risk_breakdown.risk_level,
+        rationale: item.risk_breakdown.rationale,
+      }
+    : undefined;
+
+  const flags: AnomalyFlag[] | undefined = item.flags
+    ? item.flags.map((fl: any) => ({
+        id: fl.id,
+        projectId: fl.project_id,
+        sourceEngine: fl.source_engine,
+        score: fl.score,
+        reasonText: fl.reason_text,
+        reviewStatus: fl.review_status,
+        flaggedAt: fl.flagged_at,
+        reviewerId: fl.reviewer_id,
+        reviewerNotes: fl.reviewer_notes,
+      }))
+    : undefined;
+
+  return {
+    ...base,
+    financialAnalysis,
+    similarProjects,
+    inspectionCaptures,
+    riskBreakdown,
+    flags,
+    reviewerNotes: item.reviewer_notes,
+    reviewerId: item.reviewer_id,
+  };
+}
+
+// ── Real API Endpoints with Fallback ────────────────────────────────────────
+
+/**
+ * Fetch executive dashboard statistics.
+ */
+export async function getDashboardStats(role: UserRole = "official"): Promise<DashboardStats> {
+  try {
+    const res = await fetch(`${API_BASE}/dashboard/stats?role=${encodeURIComponent(role)}`, {
+      headers: { "X-User-Role": role },
+      cache: "no-store",
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        totalProjects: data.total_projects,
+        totalAllocation: data.total_allocation,
+        statusDistribution: toCountRecord(data.status_distribution, "status"),
+        riskDistribution: toCountRecord(data.risk_distribution, "level"),
+      };
+    }
+  } catch {
+    // Backend unavailable: compute fallback stats
+  }
+
+  // Fallback computation from MOCK_PROJECTS
+  const enriched = MOCK_PROJECTS.map(enrichMockProject);
+  const totalProjects = enriched.length;
+  const totalAllocation = enriched.reduce((acc, p) => acc + p.cost, 0);
+  const statusDistribution: Record<string, number> = {};
+  for (const p of enriched) {
+    statusDistribution[p.status] = (statusDistribution[p.status] || 0) + 1;
+  }
+  const riskDistribution: Record<string, number> = { low: 0, medium: 0, high: 0 };
+  for (const p of enriched) {
+    const score = getProjectRiskScore(p.id);
+    const lvl = scoreToRiskLevel(score);
+    riskDistribution[lvl] = (riskDistribution[lvl] || 0) + 1;
+  }
+
+  return delay({
+    totalProjects,
+    totalAllocation,
+    statusDistribution,
+    riskDistribution,
+  });
+}
+
+/**
+ * Fetch projects filtered by state, constituency, category, status, risk level, or WORK description.
+ * Returns one page of results (default 20) plus total count for pagination.
+ */
+export async function getProjects(
+  filters: ProjectFilters = {},
+  role: UserRole = "official",
+  page = 1,
+  pageSize = 20
+): Promise<ProjectListResult> {
+  const safePage = Math.max(1, page);
+  const safePageSize = Math.min(2000, Math.max(1, pageSize));
+
+  try {
+    const params = new URLSearchParams();
+    if (filters.state) params.set("state", filters.state);
+    if (filters.constituency) params.set("constituency", filters.constituency);
+    if (filters.category) params.set("category", filters.category);
+    if (filters.status) params.set("status", filters.status);
+    if (filters.riskLevel) params.set("risk_level", filters.riskLevel);
+    if (filters.search) params.set("search", filters.search);
+    params.set("role", role);
+    params.set("page", String(safePage));
+    params.set("page_size", String(safePageSize));
+
+    const res = await fetch(`${API_BASE}/projects?${params.toString()}`, {
+      headers: { "X-User-Role": role },
+      cache: "no-store",
+    });
+    if (res.ok) {
+      const payload = await res.json();
+      const items = Array.isArray(payload) ? payload : payload.data ?? [];
+      const total = Array.isArray(payload)
+        ? items.length
+        : Number(payload.total ?? items.length);
+      return {
+        data: items.map(mapProjectSummary),
+        total,
+        page: Number(payload.page ?? safePage),
+        pageSize: Number(payload.page_size ?? safePageSize),
+      };
+    }
+  } catch {
+    // Backend unavailable: fallback
+  }
+
+  let list = MOCK_PROJECTS.map((p) => withRisk(enrichMockProject(p)));
+
+  if (filters.state) {
+    list = list.filter((p) => (p.state || "").toLowerCase() === filters.state?.toLowerCase());
+  }
+  if (filters.constituency) {
+    list = list.filter(
+      (p) => (p.constituency || "").toLowerCase() === filters.constituency?.toLowerCase()
+    );
+  }
+  if (filters.category) {
+    list = list.filter((p) => matchesCategoryFilter(p, filters.category!));
+  }
+  if (filters.status) {
+    list = list.filter((p) => p.status.toLowerCase() === filters.status?.toLowerCase());
   }
   if (filters.riskLevel) {
     list = list.filter((p) => p.riskLevel === filters.riskLevel);
+  }
+  if (filters.search) {
+    const q = filters.search.toLowerCase();
+    list = list.filter(
+      (p) =>
+        p.title.toLowerCase().includes(q) ||
+        (p.workDescription && p.workDescription.toLowerCase().includes(q)) ||
+        (p.state && p.state.toLowerCase().includes(q)) ||
+        (p.constituency && p.constituency.toLowerCase().includes(q)) ||
+        p.district.toLowerCase().includes(q)
+    );
+  }
+
+  if (role === "citizen") {
+    list = list.map((p) => ({
+      ...p,
+      riskScore: undefined,
+    }));
+  }
+
+  const total = list.length;
+  const start = (safePage - 1) * safePageSize;
+  const data = list.slice(start, start + safePageSize);
+
+  return delay({
+    data,
+    total,
+    page: safePage,
+    pageSize: safePageSize,
+  });
+}
+
+/**
+ * Fetch detailed project record with financial analysis, similar projects, image timeline, and risk breakdown.
+ */
+export async function getProjectById(
+  id: string,
+  role: UserRole = "official"
+): Promise<ProjectDetail | null> {
+  try {
+    const res = await fetch(`${API_BASE}/projects/${encodeURIComponent(id)}?role=${encodeURIComponent(role)}`, {
+      headers: { "X-User-Role": role },
+      cache: "no-store",
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return mapProjectDetail(data);
+    }
+  } catch {
+    // Backend unavailable: fallback
+  }
+
+  const raw = MOCK_PROJECTS.find((item) => item.id === id);
+  if (!raw) return delay(null);
+
+  const p = enrichMockProject(raw);
+  const base = withRisk(p);
+  const flags = MOCK_ANOMALIES.filter((f) => f.projectId === id);
+
+  // Fallback demo financial analysis
+  const financialAnalysis: FinancialAnalysis = {
+    allocation: p.cost,
+    estimatedMin: Math.round(p.cost * 0.7),
+    estimatedMax: Math.round(p.cost * 1.1),
+    deviationPercent: p.cost > 10000000 ? 173.4 : 8.2,
+    deviationReason:
+      p.cost > 10000000
+        ? "Allocation is 173.4x the state median for civil recreation works."
+        : "Allocation is consistent with local Schedule of Rates benchmarks.",
+    categoryMedian: 224000,
+  };
+
+  // Fallback demo similar projects
+  const similarProjects: SimilarProject[] =
+    flags.some((f) => f.sourceEngine === "nlp")
+      ? [
+          {
+            projectId: "c1e1a7cf-26ab-5167-92a1-9790ca3f069e",
+            title: "Construction of Covered Common Sitting Place for Village People - Block JHAJHA",
+            similarityScore: 0.96,
+            overlapReason: "Identical work description and sanction parameters within same sub-district.",
+            state: p.state || "Bihar",
+            constituency: p.constituency || p.district,
+          },
+        ]
+      : [];
+
+  // Fallback demo inspection captures
+  const isImageFlag = flags.some((f) => f.sourceEngine === "image");
+  const inspectionCaptures: InspectionCapture[] = isImageFlag
+    ? [
+        {
+          id: `${p.id}-cap-1`,
+          captureDate: "2023-04-01",
+          label: "Baseline Post-Sanction Inspection",
+          sourceType: "DEMO_SYNTHETIC",
+          defectSeverity: "none",
+          defectDescription: "Surface intact, newly compacted asphalt, zero visible defects.",
+        },
+        {
+          id: `${p.id}-cap-2`,
+          captureDate: "2023-08-15",
+          label: "Mid-Term Field Survey",
+          sourceType: "DEMO_SYNTHETIC",
+          defectSeverity: "minor",
+          defectDescription: "Longitudinal cracking detected along shoulder edge (width 4-8mm).",
+        },
+        {
+          id: `${p.id}-cap-3`,
+          captureDate: "2023-12-10",
+          label: "Audit Verification Inspection",
+          sourceType: "DEMO_SYNTHETIC",
+          defectSeverity: "severe",
+          defectDescription: "Severe potholing and base course depression observed across 40m carriageway.",
+        },
+      ]
+    : [
+        {
+          id: `${p.id}-cap-1`,
+          captureDate: "2023-09-01",
+          label: "Site Initial Capture",
+          sourceType: p.sourceType || "DEMO_SYNTHETIC",
+          defectSeverity: "none",
+          defectDescription: "Site condition normal with no detected anomalies.",
+        },
+      ];
+
+  const riskBreakdown: RiskBreakdown = {
+    financialScore: flags.find((f) => f.sourceEngine === "financial")?.score ?? 0.05,
+    nlpScore: flags.find((f) => f.sourceEngine === "nlp")?.score ?? 0.04,
+    imageScore: flags.find((f) => f.sourceEngine === "image")?.score ?? 0.08,
+    overallScore: role === "citizen" ? undefined : base.riskScore,
+    riskLevel: base.riskLevel,
+    rationale:
+      base.riskLevel === "high"
+        ? "Multiple engine signals indicate high probability of misallocation or quality non-compliance."
+        : base.riskLevel === "medium"
+        ? "Single engine flagged moderate deviation requiring verification."
+        : "All parameters align with benchmark standards.",
+  };
+
+  const detail: ProjectDetail = {
+    ...base,
+    financialAnalysis,
+    similarProjects,
+    inspectionCaptures,
+    riskBreakdown,
+    flags: role === "citizen" ? flags.map((f) => ({ ...f, reviewerId: undefined, reviewerNotes: undefined })) : flags,
+    reviewerNotes: role === "citizen" ? undefined : "Flagged for comprehensive verification by audit panel.",
+    reviewerId: role === "citizen" ? undefined : "AUDIT-OFFICIAL-402",
+  };
+
+  return delay(detail);
+}
+
+/**
+ * Confirm or dismiss an anomaly flag.
+ */
+export async function updateAnomalyReviewStatus(
+  id: string,
+  reviewStatus: Exclude<ReviewStatus, "pending">,
+  reviewerNotes?: string
+): Promise<AnomalyFlag | null> {
+  try {
+    const res = await fetch(`${API_BASE}/anomaly-flags/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "X-User-Role": "official",
+      },
+      body: JSON.stringify({
+        review_status: reviewStatus,
+        reviewer_notes: reviewerNotes || `Status set to ${reviewStatus} via review interface`,
+      }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        id: data.id,
+        projectId: data.project_id,
+        sourceEngine: data.source_engine,
+        score: data.score,
+        reasonText: data.reason_text,
+        reviewStatus: data.review_status,
+        flaggedAt: data.flagged_at,
+        reviewerId: data.reviewer_id,
+        reviewerNotes: data.reviewer_notes,
+      };
+    }
+  } catch {
+    // Backend unavailable: fallback
+  }
+
+  const next = MOCK_ANOMALIES.map((flag) =>
+    flag.id === id
+      ? {
+          ...flag,
+          reviewStatus,
+          reviewerNotes: reviewerNotes || `Status set to ${reviewStatus}`,
+          reviewerId: "OFFICIAL-UI",
+        }
+      : flag
+  );
+  replaceAnomalies(next);
+  const updated = next.find((f) => f.id === id) ?? null;
+  return delay(updated);
+}
+
+/**
+ * Fetch Works Near Me (ONLY the 5 seeded demo projects with synthetic coordinates).
+ */
+export async function getWorksNearMe(role: UserRole = "official"): Promise<ProjectWithRisk[]> {
+  try {
+    const res = await fetch(
+      `${API_BASE}/map/works-near-me?role=${encodeURIComponent(role)}`,
+      {
+        headers: { "X-User-Role": role },
+        cache: "no-store",
+      }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      const items = Array.isArray(data) ? data : data.data ?? [];
+      return items.map(mapProjectSummary);
+    }
+  } catch {
+    // Backend unavailable: fallback
+  }
+
+  let list = MOCK_PROJECTS.filter((p) => DEMO_PROJECT_IDS.has(p.id)).map((p) =>
+    withRisk(enrichMockProject(p))
+  );
+  if (role === "citizen") {
+    list = list.map((p) => ({ ...p, riskScore: undefined }));
+  }
+  return delay(list);
+}
+
+/**
+ * Fetch all geocoded projects matching filter criteria.
+ * Used by the interactive Map to render pins across India and all states.
+ */
+export async function getGeocodedProjects(
+  filters: ProjectFilters = {},
+  role: UserRole = "official"
+): Promise<ProjectWithRisk[]> {
+  try {
+    const result = await getProjects(filters, role, 1, 1500);
+    const withGeo = result.data.filter(
+      (p) => typeof p.lat === "number" && typeof p.lng === "number"
+    );
+    if (withGeo.length > 0) return withGeo;
+  } catch {
+    // Backend unavailable: fallback
+  }
+
+  let list = MOCK_PROJECTS.map((p) => withRisk(enrichMockProject(p))).filter(
+    (p) => typeof p.lat === "number" && typeof p.lng === "number"
+  );
+
+  if (filters.state) {
+    list = list.filter((p) => (p.state || "").toLowerCase() === filters.state?.toLowerCase());
+  }
+  if (filters.constituency) {
+    list = list.filter(
+      (p) => (p.constituency || "").toLowerCase() === filters.constituency?.toLowerCase()
+    );
+  }
+  if (filters.category) {
+    list = list.filter((p) => matchesCategoryFilter(p, filters.category!));
+  }
+  if (filters.status) {
+    list = list.filter((p) => p.status.toLowerCase() === filters.status?.toLowerCase());
+  }
+  if (filters.riskLevel) {
+    list = list.filter((p) => p.riskLevel === filters.riskLevel);
+  }
+  if (filters.search) {
+    const q = filters.search.toLowerCase();
+    list = list.filter(
+      (p) =>
+        p.title.toLowerCase().includes(q) ||
+        (p.workDescription && p.workDescription.toLowerCase().includes(q)) ||
+        (p.state && p.state.toLowerCase().includes(q)) ||
+        (p.constituency && p.constituency.toLowerCase().includes(q)) ||
+        p.district.toLowerCase().includes(q)
+    );
+  }
+
+  if (role === "citizen") {
+    list = list.map((p) => ({ ...p, riskScore: undefined }));
   }
 
   return delay(list);
 }
 
-/** Fetch a single project by id, or null if missing. */
-export async function getProjectById(id: string): Promise<ProjectWithRisk | null> {
-  const project = MOCK_PROJECTS.find((p) => p.id === id);
-  return delay(project ? withRisk(project) : null);
+/**
+ * Fetch Administrative hierarchy (States and Constituencies).
+ */
+export async function getAdministrativeHierarchy(): Promise<AdministrativeHierarchy> {
+  try {
+    const res = await fetch(`${API_BASE}/map/administrative`, {
+      cache: "no-store",
+    });
+    if (res.ok) {
+      return normalizeHierarchy(await res.json());
+    }
+  } catch {
+    // Backend unavailable: fallback
+  }
+
+  return delay(buildMockHierarchy());
 }
 
-/** All anomaly flags, optionally scoped to one project. */
+// ── Legacy Helpers ─────────────────────────────────────────────────────────
+
 export async function getAnomalyFlags(projectId?: string): Promise<AnomalyFlag[]> {
   const list = projectId
     ? MOCK_ANOMALIES.filter((f) => f.projectId === projectId)
@@ -81,7 +774,6 @@ export async function getAnomalyFlags(projectId?: string): Promise<AnomalyFlag[]
   return delay(list.sort((a, b) => b.score - a.score));
 }
 
-/** Pending flags for the review queue. */
 export async function getPendingAnomalyFlags(): Promise<AnomalyFlag[]> {
   const list = MOCK_ANOMALIES.filter((f) => f.reviewStatus === "pending").sort(
     (a, b) => b.score - a.score
@@ -89,20 +781,6 @@ export async function getPendingAnomalyFlags(): Promise<AnomalyFlag[]> {
   return delay(list);
 }
 
-/** Update review status in local mock state (no real API). */
-export async function updateAnomalyReviewStatus(
-  id: string,
-  reviewStatus: Exclude<ReviewStatus, "pending">
-): Promise<AnomalyFlag | null> {
-  const next = MOCK_ANOMALIES.map((flag) =>
-    flag.id === id ? { ...flag, reviewStatus } : flag
-  );
-  replaceAnomalies(next);
-  const updated = next.find((f) => f.id === id) ?? null;
-  return delay(updated);
-}
-
-/** Placeholder image captures for a project. */
 export async function getProjectImages(projectId: string): Promise<ProjectImage[]> {
   const list = MOCK_IMAGES.filter((img) => img.projectId === projectId).sort((a, b) =>
     a.captureDate.localeCompare(b.captureDate)
@@ -110,13 +788,79 @@ export async function getProjectImages(projectId: string): Promise<ProjectImage[
   return delay(list);
 }
 
-/** Distinct districts for filter dropdowns. */
 export async function getDistricts(): Promise<string[]> {
   const districts = Array.from(new Set(MOCK_PROJECTS.map((p) => p.district))).sort();
   return delay(districts);
 }
 
-/** Resolve project title quickly for list UIs. */
 export function getProjectTitleSync(projectId: string): string {
   return MOCK_PROJECTS.find((p) => p.id === projectId)?.title ?? "Unknown project";
 }
+
+/**
+ * Query the AI Audit Assistant with natural-language questions.
+ */
+export async function askAuditAssistant(
+  question: string,
+  role: UserRole = "official"
+): Promise<AuditAssistantResponse> {
+  try {
+    const res = await fetch(`${API_BASE}/assistant/query?role=${encodeURIComponent(role)}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-User-Role": role,
+      },
+      body: JSON.stringify({ question, role }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        question: data.question,
+        answer: data.answer,
+        citations: (data.citations || []).map((c: any) => ({
+          projectId: c.project_id,
+          title: c.title,
+          state: c.state,
+          constituency: c.constituency,
+          allocation: c.allocation,
+          category: c.category,
+          flags: c.flags || [],
+        })),
+        intent: data.intent,
+        recordsFound: data.records_found,
+        safeAuditLanguage: data.safe_audit_language ?? true,
+        disclaimer:
+          data.disclaimer ||
+          "This assistant surfaces anomaly indicators and statistical outliers for audit review. It does not determine fraud.",
+      };
+    }
+  } catch {
+    // Fallback if backend is unavailable
+  }
+
+  return delay({
+    question,
+    answer:
+      "Analysis of database records retrieved 1 highest-allocation road projects in Punjab from the database:\n1. Construction of concrete link road from GT Road to village canal — Rs. 4.20 Cr (Ludhiana, Punjab) (Flagged for review: 1 anomaly indicator).\n\nThese records have been surfaced based on allocation amounts exceeding historical peer group baselines.",
+    citations: [
+      {
+        projectId: "88888888-0000-0000-0001-000000000001",
+        title: "Construction of concrete link road from GT Road to village canal",
+        state: "Punjab",
+        constituency: "Ludhiana",
+        allocation: 42000000,
+        category: "Roads and Bridges",
+        flags: [
+          "Project allocation (Rs. 4.20 Cr) is 3.8x the state category median (Rs. 1.10 Cr) for rural road works in Punjab.",
+        ],
+      },
+    ],
+    intent: "EXPENSIVE_PROJECTS",
+    recordsFound: 1,
+    safeAuditLanguage: true,
+    disclaimer:
+      "This assistant surfaces anomaly indicators and statistical outliers for audit review. It does not determine fraud.",
+  });
+}
+

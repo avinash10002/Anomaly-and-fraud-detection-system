@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Sans, Source_Sans_3 } from "next/font/google";
 import { AppHeader } from "@/components/AppHeader";
+import { RoleProvider } from "@/lib/role-context";
 import "./globals.css";
 
 const sourceSans = Source_Sans_3({
@@ -30,10 +31,12 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${sourceSans.variable} ${ibmPlex.variable}`}>
       <body className="font-sans">
-        <AppHeader />
-        <main className="mx-auto min-h-[calc(100dvh-3.5rem)] max-w-7xl px-4 py-6 sm:px-6">
-          {children}
-        </main>
+        <RoleProvider>
+          <AppHeader />
+          <main className="mx-auto min-h-[calc(100dvh-3.5rem)] max-w-7xl px-4 py-6 sm:px-6">
+            {children}
+          </main>
+        </RoleProvider>
       </body>
     </html>
   );

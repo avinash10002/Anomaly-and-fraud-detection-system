@@ -20,10 +20,10 @@ export default function MapPage() {
       <div className="flex h-full flex-col">
         <div className="shrink-0 border-b border-slate-200 bg-white px-4 py-3 sm:px-6">
           <h1 className="font-display text-lg font-semibold text-ink">
-            Project map
+            Geographic & Administrative Explorer
           </h1>
           <p className="text-sm text-ink-muted">
-            Markers are colored by risk. Click a marker for summary and details.
+            Browse projects by administrative boundaries (State → Constituency) or explore the 5 seeded demo cases with Works Near Me.
           </p>
         </div>
         <div className="min-h-0 flex-1 p-3 sm:p-4">
