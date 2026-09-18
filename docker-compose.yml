@@ -1,0 +1,137 @@
+version: "3.9"
+
+# ---------------------------------------------------------------------------
+# Shared network
+# ---------------------------------------------------------------------------
+networks:
+  mplad_net:
+    driver: bridge
+
+# ---------------------------------------------------------------------------
+# Named volumes
+# ---------------------------------------------------------------------------
+volumes:
+  postgres_data:
+
+# ---------------------------------------------------------------------------
+# Services
+# ---------------------------------------------------------------------------
+services:
+
+  # ── Database ───────────────────────────────────────────────────────────────
+  postgres:
+    image: postgis/postgis:16-3.4-alpine
+    container_name: mplad_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       mplad
+      POSTGRES_USER:     mplad_user
+      POSTGRES_PASSWORD: mplad_secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/migrations:/docker-entrypoint-initdb.d:ro   # auto-runs on first start
+    networks:
+      - mplad_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mplad_user -d mplad"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ── Frontend ───────────────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./services/frontend
+      dockerfile: Dockerfile
+    container_name: mplad_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      API_BASE_URL: http://localhost:8080/api/v1
+    networks:
+      - mplad_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ── Financial Engine ───────────────────────────────────────────────────────
+  financial-engine:
+    build:
+      context: ./services/financial-engine
+      dockerfile: Dockerfile
+    container_name: mplad_financial_engine
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      DATABASE_URL: postgresql://mplad_user:mplad_secret@postgres:5432/mplad
+      SERVICE_PORT: "8081"
+    networks:
+      - mplad_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ── Image Engine ───────────────────────────────────────────────────────────
+  image-engine:
+    build:
+      context: ./services/image-engine
+      dockerfile: Dockerfile
+    container_name: mplad_image_engine
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    environment:
+      DATABASE_URL: postgresql://mplad_user:mplad_secret@postgres:5432/mplad
+      SERVICE_PORT: "8082"
+    networks:
+      - mplad_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ── Graph Service ──────────────────────────────────────────────────────────
+  graph-service:
+    build:
+      context: ./services/graph-service
+      dockerfile: Dockerfile
+    container_name: mplad_graph_service
+    restart: unless-stopped
+    ports:
+      - "8083:8083"
+    environment:
+      DATABASE_URL: postgresql://mplad_user:mplad_secret@postgres:5432/mplad
+      SERVICE_PORT: "8083"
+    networks:
+      - mplad_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8083/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

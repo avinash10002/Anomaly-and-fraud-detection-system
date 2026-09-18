@@ -1,0 +1,756 @@
+openapi: "3.0.3"
+info:
+  title: MPLAD Anomaly Detector API
+  version: "1.0.0"
+  description: |
+    REST API contract for the MPLAD Fund Utilisation Fraud/Anomaly Detection
+    System. This document defines all request/response shapes; no implementation
+    is included here.
+  contact:
+    name: Hackathon Team
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development
+
+# ---------------------------------------------------------------------------
+# Reusable components
+# ---------------------------------------------------------------------------
+components:
+  schemas:
+
+    # ── Enums ────────────────────────────────────────────────────────────────
+
+    ProjectType:
+      type: string
+      enum: [road, building, park, other]
+
+    ProjectStatus:
+      type: string
+      enum: [planned, ongoing, completed, stalled, cancelled]
+
+    SourceEngine:
+      type: string
+      enum: [financial, image, nlp]
+
+    ReviewStatus:
+      type: string
+      enum: [pending, confirmed, dismissed]
+
+    ImageSource:
+      type: string
+      enum: [streetview, mapillary, upload]
+
+    # ── Core objects ─────────────────────────────────────────────────────────
+
+    MP:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          example: "Ramesh Kumar Singh"
+        constituency:
+          type: string
+          example: "Varanasi"
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required: [id, name, constituency]
+
+    Contractor:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          example: "Bharat Infrastructure Pvt Ltd"
+        registration_number:
+          type: string
+          example: "REG-MH-2018-00452"
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required: [id, name, registration_number]
+
+    Project:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+          example: "Four-lane road widening — NH-30 bypass Rewa"
+        type:
+          $ref: "#/components/schemas/ProjectType"
+        sanction_date:
+          type: string
+          format: date
+          example: "2023-04-01"
+        completion_declared_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2024-03-15"
+        cost:
+          type: number
+          format: double
+          description: Cost in Indian Rupees (INR)
+          example: 4500000.00
+        latitude:
+          type: number
+          format: double
+          example: 24.5362
+        longitude:
+          type: number
+          format: double
+          example: 81.2983
+        district:
+          type: string
+          example: "Rewa"
+        state:
+          type: string
+          example: "Madhya Pradesh"
+        contractor_id:
+          type: string
+          format: uuid
+        mp_id:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/ProjectStatus"
+        description:
+          type: string
+          nullable: true
+        contractor:
+          $ref: "#/components/schemas/Contractor"
+          readOnly: true
+        mp:
+          $ref: "#/components/schemas/MP"
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+        - id
+        - title
+        - type
+        - sanction_date
+        - cost
+        - latitude
+        - longitude
+        - district
+        - state
+        - contractor_id
+        - mp_id
+        - status
+
+    ProjectCreate:
+      type: object
+      required:
+        - title
+        - type
+        - sanction_date
+        - cost
+        - latitude
+        - longitude
+        - district
+        - state
+        - contractor_id
+        - mp_id
+      properties:
+        title:
+          type: string
+        type:
+          $ref: "#/components/schemas/ProjectType"
+        sanction_date:
+          type: string
+          format: date
+        completion_declared_date:
+          type: string
+          format: date
+          nullable: true
+        cost:
+          type: number
+          format: double
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        district:
+          type: string
+        state:
+          type: string
+        contractor_id:
+          type: string
+          format: uuid
+        mp_id:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/ProjectStatus"
+        description:
+          type: string
+          nullable: true
+
+    AnomalyFlag:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        project_id:
+          type: string
+          format: uuid
+        source_engine:
+          $ref: "#/components/schemas/SourceEngine"
+        score:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+          example: 0.87
+        reason_text:
+          type: string
+          example: "Declared cost 3.2× the district median for road projects of similar length"
+        review_status:
+          $ref: "#/components/schemas/ReviewStatus"
+        reviewer_id:
+          type: string
+          format: uuid
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+        - id
+        - project_id
+        - source_engine
+        - score
+        - reason_text
+        - review_status
+
+    AnomalyFlagCreate:
+      type: object
+      required:
+        - source_engine
+        - score
+        - reason_text
+      properties:
+        source_engine:
+          $ref: "#/components/schemas/SourceEngine"
+        score:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+        reason_text:
+          type: string
+
+    AnomalyFlagPatch:
+      type: object
+      required:
+        - review_status
+      properties:
+        review_status:
+          $ref: "#/components/schemas/ReviewStatus"
+        reviewer_id:
+          type: string
+          format: uuid
+          nullable: true
+
+    ImageCapture:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        project_id:
+          type: string
+          format: uuid
+        source:
+          $ref: "#/components/schemas/ImageSource"
+        capture_date:
+          type: string
+          format: date
+          example: "2024-06-10"
+        image_url:
+          type: string
+          format: uri
+          example: "https://storage.example.com/captures/abc123.jpg"
+        defect_class:
+          type: string
+          nullable: true
+          example: "pothole"
+        defect_confidence:
+          type: number
+          format: double
+          nullable: true
+          minimum: 0
+          maximum: 1
+          example: 0.93
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+        - id
+        - project_id
+        - source
+        - capture_date
+        - image_url
+
+    ImageCaptureCreate:
+      type: object
+      required:
+        - source
+        - capture_date
+        - image_url
+      properties:
+        source:
+          $ref: "#/components/schemas/ImageSource"
+        capture_date:
+          type: string
+          format: date
+        image_url:
+          type: string
+          format: uri
+        defect_class:
+          type: string
+          nullable: true
+        defect_confidence:
+          type: number
+          format: double
+          nullable: true
+          minimum: 0
+          maximum: 1
+
+    # ── Pagination envelope ──────────────────────────────────────────────────
+
+    PaginationMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+          example: 1
+        page_size:
+          type: integer
+          example: 20
+        total:
+          type: integer
+          example: 142
+
+    ProjectListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Project"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    AnomalyFlagListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnomalyFlag"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    ImageCaptureListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImageCapture"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+
+    # ── Error ────────────────────────────────────────────────────────────────
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "not_found"
+        message:
+          type: string
+          example: "Project with the given ID does not exist."
+        details:
+          type: object
+          additionalProperties: true
+          nullable: true
+      required: [error, message]
+
+  # ── Common parameters ──────────────────────────────────────────────────────
+  parameters:
+
+    ProjectId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: UUID of the project
+
+    AnomalyFlagId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: UUID of the anomaly flag
+
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        default: 1
+        minimum: 1
+
+    PageSizeParam:
+      name: page_size
+      in: query
+      schema:
+        type: integer
+        default: 20
+        minimum: 1
+        maximum: 100
+
+  # ── Reusable responses ─────────────────────────────────────────────────────
+  responses:
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+    UnprocessableEntity:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+# ---------------------------------------------------------------------------
+# Paths
+# ---------------------------------------------------------------------------
+paths:
+
+  # ── Projects ───────────────────────────────────────────────────────────────
+
+  /projects:
+    get:
+      operationId: listProjects
+      summary: List all projects
+      tags: [Projects]
+      parameters:
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/PageSizeParam"
+        - name: state
+          in: query
+          schema:
+            type: string
+          description: Filter by state name
+        - name: district
+          in: query
+          schema:
+            type: string
+          description: Filter by district name
+        - name: type
+          in: query
+          schema:
+            $ref: "#/components/schemas/ProjectType"
+          description: Filter by project type
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/ProjectStatus"
+          description: Filter by project status
+        - name: mp_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Filter by MP UUID
+        - name: contractor_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Filter by contractor UUID
+        - name: min_cost
+          in: query
+          schema:
+            type: number
+            format: double
+        - name: max_cost
+          in: query
+          schema:
+            type: number
+            format: double
+        - name: has_anomaly
+          in: query
+          schema:
+            type: boolean
+          description: If true, only return projects with at least one anomaly flag
+      responses:
+        "200":
+          description: Paginated list of projects
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectListResponse"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /projects/{id}:
+    get:
+      operationId: getProject
+      summary: Get a single project by ID
+      tags: [Projects]
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Project detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ── Anomaly Flags ──────────────────────────────────────────────────────────
+
+  /projects/{id}/anomaly-flags:
+    post:
+      operationId: createAnomalyFlag
+      summary: Submit a new anomaly flag for a project
+      tags: [AnomalyFlags]
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnomalyFlagCreate"
+            example:
+              source_engine: financial
+              score: 0.91
+              reason_text: "Contractor invoiced 40% above approved estimate with no amendment recorded"
+      responses:
+        "201":
+          description: Anomaly flag created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnomalyFlag"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    get:
+      operationId: listAnomalyFlags
+      summary: List anomaly flags for a project
+      tags: [AnomalyFlags]
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/PageSizeParam"
+        - name: source_engine
+          in: query
+          schema:
+            $ref: "#/components/schemas/SourceEngine"
+        - name: review_status
+          in: query
+          schema:
+            $ref: "#/components/schemas/ReviewStatus"
+        - name: min_score
+          in: query
+          schema:
+            type: number
+            format: double
+            minimum: 0
+            maximum: 1
+      responses:
+        "200":
+          description: Paginated list of anomaly flags
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnomalyFlagListResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /anomaly-flags/{id}:
+    patch:
+      operationId: reviewAnomalyFlag
+      summary: Update the review status of an anomaly flag
+      tags: [AnomalyFlags]
+      parameters:
+        - $ref: "#/components/parameters/AnomalyFlagId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnomalyFlagPatch"
+            example:
+              review_status: confirmed
+              reviewer_id: "d290f1ee-6c54-4b01-90e6-d701748f0851"
+      responses:
+        "200":
+          description: Updated anomaly flag
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnomalyFlag"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  # ── Image Captures ─────────────────────────────────────────────────────────
+
+  /projects/{id}/image-captures:
+    post:
+      operationId: createImageCapture
+      summary: Upload / register a new image capture for a project
+      tags: [ImageCaptures]
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImageCaptureCreate"
+            example:
+              source: upload
+              capture_date: "2024-08-22"
+              image_url: "https://storage.example.com/captures/rewa-road-aug-22.jpg"
+              defect_class: "crack"
+              defect_confidence: 0.78
+      responses:
+        "201":
+          description: Image capture registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImageCapture"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    get:
+      operationId: listImageCaptures
+      summary: List image captures for a project
+      tags: [ImageCaptures]
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - $ref: "#/components/parameters/PageParam"
+        - $ref: "#/components/parameters/PageSizeParam"
+        - name: source
+          in: query
+          schema:
+            $ref: "#/components/schemas/ImageSource"
+        - name: defect_class
+          in: query
+          schema:
+            type: string
+          description: Filter by defect classification label
+        - name: from_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to_date
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Paginated list of image captures
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImageCaptureListResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+tags:
+  - name: Projects
+    description: MPLAD infrastructure project records
+  - name: AnomalyFlags
+    description: Fraud/anomaly signals raised by detection engines
+  - name: ImageCaptures
+    description: Street-level and aerial imagery associated with projects
