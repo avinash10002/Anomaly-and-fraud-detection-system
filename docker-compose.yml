@@ -12,6 +12,7 @@ networks:
 # ---------------------------------------------------------------------------
 volumes:
   postgres_data:
+  auth_data:
 
 # ---------------------------------------------------------------------------
 # Services
@@ -64,6 +65,33 @@ services:
       retries: 3
       start_period: 10s
 
+  # ── Risk Aggregator ────────────────────────────────────────────────────────
+  risk-aggregator:
+    build:
+      context: ./services/risk-aggregator
+      dockerfile: Dockerfile
+    container_name: mplad_risk_aggregator
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgresql://mplad_user:mplad_secret@postgres:5432/mplad
+      SERVICE_PORT: "8080"
+      FINANCIAL_ENGINE_URL: http://financial-engine:8081
+      IMAGE_ENGINE_URL: http://image-engine:8082
+      NLP_SIMILARITY_URL: http://nlp-similarity:8085
+    networks:
+      - mplad_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8080/health')\""]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
   # ── Financial Engine ───────────────────────────────────────────────────────
   financial-engine:
     build:
@@ -107,11 +135,11 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/health || exit 1"]
-      interval: 15s
-      timeout: 5s
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8082/health')\""]
+      interval: 20s
+      timeout: 8s
       retries: 3
-      start_period: 10s
+      start_period: 20s
 
   # ── Graph Service ──────────────────────────────────────────────────────────
   graph-service:
@@ -154,3 +182,63 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+
+  # ── NLP Similarity Service ─────────────────────────────────────────────────
+  nlp-similarity:
+    build:
+      context: ./services/nlp-similarity
+      dockerfile: Dockerfile
+    container_name: mplad_nlp_similarity
+    restart: unless-stopped
+    ports:
+      - "8085:8085"
+    environment:
+      DATABASE_URL: postgresql://mplad_user:mplad_secret@postgres:5432/mplad
+      SERVICE_PORT: "8085"
+      MODEL_NAME: "all-MiniLM-L6-v2"
+      ENCODE_BATCH_SIZE: "256"
+    networks:
+      - mplad_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8085/health')\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+  # ── Auth Service ────────────────────────────────────────────────────────────
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    container_name: mplad_auth_service
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+    environment:
+      PORT:            "8086"
+      NODE_ENV:        production
+      JWT_SECRET:      "${JWT_SECRET}"
+      JWT_EXPIRES_IN:  "2h"
+      SMTP_HOST:       "${SMTP_HOST}"
+      SMTP_PORT:       "${SMTP_PORT:-587}"
+      SMTP_SECURE:     "${SMTP_SECURE:-false}"
+      SMTP_USER:       "${SMTP_USER}"
+      SMTP_PASS:       "${SMTP_PASS}"
+      SMTP_FROM:       "${SMTP_FROM:-MPLADS Audit System <no-reply@mplads.gov.in>}"
+      COOKIE_SECURE:   "true"
+      COOKIE_SAME_SITE: "strict"
+      BCRYPT_ROUNDS:   "12"
+    volumes:
+      - auth_data:/app/data   # persist SQLite DB across container restarts
+    networks:
+      - mplad_net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8086/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

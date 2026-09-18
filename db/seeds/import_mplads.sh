@@ -72,22 +72,31 @@ pip install --quiet -r requirements.txt
 echo "  ✓ Dependencies ready."
 
 # ---------------------------------------------------------------------------
-# Step 2: Apply migration 002 (idempotent — IF NOT EXISTS guards in SQL)
+# Step 2: Apply migrations 002 and 003 (idempotent - IF NOT EXISTS guards in SQL)
 # ---------------------------------------------------------------------------
 echo ""
-echo "▶ Step 2/4 — Applying migration 002_mplads_ingestion.sql …"
+echo "▶ Step 2/5 — Applying migrations 002 and 003 …"
 psql "$DB_URL" \
      --single-transaction \
      --set ON_ERROR_STOP=1 \
      -f "$MIGRATIONS_DIR/002_mplads_ingestion.sql" \
-  && echo "  ✓ Migration applied (or already up to date)." \
-  || echo "  ⚠ Migration had errors (possibly already applied — check output above)."
+  && echo "  ✓ Migration 002 applied (or already up to date)." \
+  || echo "  ⚠ Migration 002 had errors (possibly already applied — check output above)."
+
+if [[ -f "$MIGRATIONS_DIR/003_add_source_type.sql" ]]; then
+    psql "$DB_URL" \
+         --single-transaction \
+         --set ON_ERROR_STOP=1 \
+         -f "$MIGRATIONS_DIR/003_add_source_type.sql" \
+      && echo "  ✓ Migration 003 applied (or already up to date)." \
+      || echo "  ⚠ Migration 003 had errors (check output above)."
+fi
 
 # ---------------------------------------------------------------------------
 # Step 3: Run the ingestion pipeline
 # ---------------------------------------------------------------------------
 echo ""
-echo "▶ Step 3/4 — Ingesting CSV …"
+echo "▶ Step 3/5 — Ingesting CSV …"
 python3 "$PIPELINE_DIR/ingest.py" \
     --csv   "$CSV_FILE" \
     --db-url "$DB_URL" \
@@ -99,12 +108,22 @@ echo "  ✓ Ingestion complete."
 # Step 4: Generate data-quality report
 # ---------------------------------------------------------------------------
 echo ""
-echo "▶ Step 4/4 — Generating quality report …"
+echo "▶ Step 4/5 — Generating quality report …"
 mkdir -p "$REPO_ROOT/reports"
 python3 "$PIPELINE_DIR/quality_report.py" \
     --db-url "$DB_URL" \
     --output "$REPO_ROOT/reports/quality_report.md"
 echo "  ✓ Report saved to reports/quality_report.md"
+
+# ---------------------------------------------------------------------------
+# Step 5: Seed synthetic demo inspection timelines & anomaly flags
+# ---------------------------------------------------------------------------
+echo ""
+echo "▶ Step 5/5 — Seeding synthetic demo inspection timelines & flags …"
+python3 "$PIPELINE_DIR/seed_demo_timelines.py" \
+    --db-url "$DB_URL" \
+    --write-sql "$REPO_ROOT/db/seeds/demo_synthetic_timelines.sql"
+echo "  ✓ Demo synthetic timelines and flags seeded."
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

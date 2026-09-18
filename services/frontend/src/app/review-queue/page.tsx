@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { RiskBadge } from "@/components/RiskBadge";
+import { useRole } from "@/lib/role-context";
 import {
   getPendingAnomalyFlags,
   getProjectTitleSync,
@@ -13,6 +14,7 @@ import { formatPercent } from "@/lib/format";
 import type { AnomalyFlag } from "@/lib/types";
 
 export default function ReviewQueuePage() {
+  const { isOfficial, official, loading: authLoading } = useRole();
   const [flags, setFlags] = useState<AnomalyFlag[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -42,6 +44,36 @@ export default function ReviewQueuePage() {
 
   return (
     <div className="space-y-4">
+      {!authLoading && !isOfficial && (
+        <div className="panel p-4 border-amber-300 bg-amber-50/90 flex flex-wrap items-center justify-between gap-3 text-xs text-amber-900">
+          <div className="flex items-center gap-2">
+            <span className="text-base">🔒</span>
+            <span>
+              <strong>Official Login Required:</strong> To review and act on pending flags as a verified official, please sign in with your pre-registered email.
+            </span>
+          </div>
+          <Link
+            href="/login?redirect=/review-queue"
+            className="btn btn-primary text-xs py-1 px-3 shrink-0"
+          >
+            Sign In with Email
+          </Link>
+        </div>
+      )}
+
+      {official && (
+        <div className="panel p-3 bg-blue-50/70 border-blue-200 flex items-center justify-between text-xs text-blue-950">
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+            <span>
+              Logged in as <strong>{official.name}</strong> ({official.email}) •{" "}
+              <span className="font-semibold uppercase text-brand tracking-wider">{official.role}</span>
+            </span>
+          </div>
+          <span className="text-[11px] text-blue-800/80">Audit actions will be attributed to this account</span>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">

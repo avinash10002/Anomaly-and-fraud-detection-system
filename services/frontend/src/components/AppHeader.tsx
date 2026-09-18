@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { AuditAssistantDrawer } from "@/components/AuditAssistantDrawer";
 import { useRole } from "@/lib/role-context";
@@ -14,16 +14,25 @@ const NAV = [
 
 export function AppHeader() {
   const pathname = usePathname();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(false);
-  const { role, setRole, isCitizen, isOfficial } = useRole();
+  const { role, setRole, isCitizen, isOfficial, official, logout } = useRole();
 
   const navItems = NAV.filter((item) => !item.officialOnly || isOfficial);
+
+  function handleOfficialClick() {
+    if (official) {
+      setRole("official");
+    } else {
+      router.push("/login?redirect=/review-queue");
+    }
+  }
 
   return (
     <>
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-7xl items-center gap-4 px-4 sm:px-6">
+        <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 px-4 sm:px-6">
           <Link href="/dashboard" className="flex min-w-0 items-center gap-2.5">
             <span className="flex h-8 w-8 items-center justify-center rounded bg-brand text-[10px] font-bold tracking-wider text-white">
               MP
@@ -53,16 +62,52 @@ export function AppHeader() {
             </button>
             <button
               type="button"
-              onClick={() => setRole("official")}
-              className={`rounded px-2.5 py-1 font-medium transition-all ${
+              onClick={handleOfficialClick}
+              className={`rounded px-2.5 py-1 font-medium transition-all flex items-center gap-1.5 ${
                 isOfficial
                   ? "bg-brand text-white shadow-sm font-semibold"
                   : "text-ink-muted hover:text-ink"
               }`}
             >
+              {!official && <span className="text-[11px]">🔒</span>}
               Official / Reviewer
             </button>
           </div>
+
+          {/* Official Profile Badge or Login Button */}
+          {official ? (
+            <div className="hidden lg:flex items-center gap-2 pl-1 border-l border-slate-200 text-xs">
+              <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span className="font-semibold text-ink max-w-[120px] truncate">{official.name}</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.2 rounded font-bold uppercase ${
+                    official.role === "admin"
+                      ? "bg-purple-100 text-purple-800"
+                      : "bg-blue-100 text-blue-800"
+                  }`}
+                >
+                  {official.role}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => logout()}
+                className="text-[11px] font-semibold text-red-600 hover:text-red-800 hover:underline px-1 py-1"
+                title="Sign out of official account"
+              >
+                Sign Out
+              </button>
+            </div>
+          ) : (
+            <Link
+              href="/login"
+              className="hidden sm:inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-ink shadow-sm hover:bg-slate-50 transition-colors"
+            >
+              <span>🔒</span>
+              Official Login
+            </Link>
+          )}
 
           {/* AI Audit Assistant Launcher */}
           <button
@@ -110,30 +155,34 @@ export function AppHeader() {
               Open AI Audit Assistant
             </button>
 
-            {/* Mobile role switcher */}
-            <div className="flex sm:hidden items-center justify-between rounded-lg border border-slate-200 bg-slate-50 p-1 text-xs mb-2">
-              <span className="px-2 text-ink-muted font-medium">Role:</span>
-              <div className="flex gap-1">
+            {/* Mobile official status or login */}
+            {official ? (
+              <div className="sm:hidden flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs">
+                <div>
+                  <span className="font-semibold text-ink block">{official.name}</span>
+                  <span className="text-[10px] text-brand font-medium uppercase">{official.role}</span>
+                </div>
                 <button
                   type="button"
-                  onClick={() => setRole("citizen")}
-                  className={`rounded px-2.5 py-1 ${
-                    isCitizen ? "bg-white text-ink shadow-sm font-semibold" : "text-ink-muted"
-                  }`}
+                  onClick={() => {
+                    logout();
+                    setOpen(false);
+                  }}
+                  className="font-semibold text-red-600 hover:underline"
                 >
-                  Citizen
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRole("official")}
-                  className={`rounded px-2.5 py-1 ${
-                    isOfficial ? "bg-brand text-white shadow-sm font-semibold" : "text-ink-muted"
-                  }`}
-                >
-                  Official
+                  Sign Out
                 </button>
               </div>
-            </div>
+            ) : (
+              <Link
+                href="/login"
+                onClick={() => setOpen(false)}
+                className="sm:hidden flex items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-ink"
+              >
+                <span>🔒</span>
+                Official Login
+              </Link>
+            )}
 
             {navItems.map((item) => {
               const active =

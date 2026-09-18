@@ -418,8 +418,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Ingest MPLADS CSV into PostgreSQL mplads_project table."
     )
-    parser.add_argument("--csv",        required=True, type=Path,
-                        help="Path to MPLADS CSV file")
+    parser.add_argument("--csv", default=None, type=Path,
+                        help="Path to MPLADS CSV file (default: auto-detects MPLADS.csv or data/mplads.csv)")
     parser.add_argument("--db-url",     default=os.getenv("DATABASE_URL"),
                         help="PostgreSQL connection URL (or set DATABASE_URL)")
     parser.add_argument("--batch-size", type=int, default=1000,
@@ -430,9 +430,18 @@ def main() -> None:
                         help="Print per-batch statistics")
     args = parser.parse_args()
 
-    if not args.csv.exists():
-        log.error("CSV file not found: %s", args.csv)
+    csv_path = args.csv
+    if not csv_path:
+        for candidate in [Path("data/mplads.csv"), Path("MPLADS.csv"), Path("../MPLADS.csv")]:
+            if candidate.exists():
+                csv_path = candidate
+                break
+
+    if not csv_path or not csv_path.exists():
+        log.error("CSV file not found. Provide --csv <path> or ensure MPLADS.csv is in the workspace.")
         sys.exit(1)
+
+    args.csv = csv_path
 
     if not args.dry_run and not args.db_url:
         log.error("No database URL provided. Use --db-url or set DATABASE_URL.")
