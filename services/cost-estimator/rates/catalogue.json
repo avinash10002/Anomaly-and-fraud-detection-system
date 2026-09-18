@@ -1,0 +1,222 @@
+{
+  "_meta": {
+    "schema_version": "1.0",
+    "catalogue_version": "0.1.0-prototype",
+    "data_source": "PROTOTYPE_DEMO_RATES",
+    "disclaimer": "PROTOTYPE DEMONSTRATION RATES ONLY — not official Schedule of Rates figures. Do not use for procurement or audit purposes.",
+    "last_updated": "2026-09-18",
+    "basis": "Indicative figures compiled for hackathon demonstration from publicly available construction cost indices and news articles. They do NOT represent any government Schedule of Rates (SoR) and MUST NOT be used for actual procurement, tendering, or audit decisions.",
+    "replace_instructions": "To swap in real data: replace the 'categories' block with entries that share the same JSON schema (unit, rate_inr.low/high, typical_quantity.low/high, confidence, assumptions). The API will pick up the new catalogue on next restart without any code change.",
+    "units_note": "All monetary values are in Indian Rupees (INR). Rate ranges are approximate and cover plain-terrain, generic-specification works."
+  },
+
+  "categories": {
+
+    "road": {
+      "label": "Road / Link Road / Pathway Construction",
+      "keywords": [
+        "road", "link road", "pathway", "path way", "sadak", "marg",
+        "lane", "footpath", "pavement", "cc road", "bt road", "wbm",
+        "tarring", "metalling", "rasta", "soling"
+      ],
+      "unit": "km",
+      "unit_label": "kilometre",
+      "rate_inr": {
+        "low": 700000,
+        "high": 4500000,
+        "note": "Lower end: gravel/WBM single-lane rural track; upper end: BT double-lane with side drains and shoulders"
+      },
+      "typical_quantity": {
+        "low": 0.5,
+        "high": 6.0,
+        "note": "MPLAD road works typically range from short link roads (~0.5 km) to longer rural arterials (~6 km)"
+      },
+      "confidence": "medium",
+      "assumptions": [
+        "Single or double-lane rural road with WBM/BT/CC surface",
+        "Excludes land acquisition, utility relocation, and retaining walls",
+        "Hilly or waterlogged terrain may increase cost by 50–150%",
+        "Rate includes formation, sub-base, base, and wearing course"
+      ]
+    },
+
+    "community_hall": {
+      "label": "Community Centre / Community Hall / Panchayat Building",
+      "keywords": [
+        "community centre", "community center", "community hall",
+        "panchayat bhawan", "multipurpose hall", "samudayik bhawan",
+        "gram sabha", "cultural hall", "dharna", "baithak", "jan milan",
+        "village hall", "mahila mandal", "gramin"
+      ],
+      "unit": "sq ft",
+      "unit_label": "square foot (built-up area)",
+      "rate_inr": {
+        "low": 900,
+        "high": 2400,
+        "note": "Lower end: load-bearing brick construction; upper end: RCC framed with full finishes"
+      },
+      "typical_quantity": {
+        "low": 800,
+        "high": 6000,
+        "note": "Small village hall to multi-room community centre"
+      },
+      "confidence": "medium",
+      "assumptions": [
+        "RCC framed structure or load-bearing brick with basic finishes",
+        "Includes flooring, doors/windows, electrification, and plumbing",
+        "Excludes site development, boundary wall, and furniture",
+        "Typical MPLAD building project: 1,000 – 5,000 sq ft"
+      ]
+    },
+
+    "street_lighting": {
+      "label": "Street Lighting / Solar Lighting Installation",
+      "keywords": [
+        "street light", "streetlight", "street lighting", "lighting",
+        "led light", "solar light", "lamp post", "high mast", "bijli",
+        "pole light", "flood light", "solar panel", "solar lamp",
+        "public light", "sodium vapour"
+      ],
+      "unit": "light point",
+      "unit_label": "light point (pole + fitting + wiring)",
+      "rate_inr": {
+        "low": 15000,
+        "high": 90000,
+        "note": "Lower end: standalone solar LED; upper end: grid-connected high-mast fitting with civil works"
+      },
+      "typical_quantity": {
+        "low": 15,
+        "high": 250,
+        "note": "A village/ward scheme typically covers 15–250 points"
+      },
+      "confidence": "medium",
+      "assumptions": [
+        "Includes pole, LED fitting, wiring/cable trenching, and metering",
+        "Solar standalone units at lower end; grid-connected at upper end",
+        "Excludes transformer upgrade or HT line extension",
+        "Battery and controller included for solar variants"
+      ]
+    },
+
+    "drainage": {
+      "label": "Drainage / Nali / Gutter / Storm-Water Channel",
+      "keywords": [
+        "drainage", "drain", "nali", "nala", "gutter", "sewer",
+        "naali", "culvert", "storm water", "storm drain", "channel",
+        "kachha nali", "pakka nali", "sewage", "soak pit", "soakpit"
+      ],
+      "unit": "running metre",
+      "unit_label": "running metre (channel length)",
+      "rate_inr": {
+        "low": 1000,
+        "high": 6500,
+        "note": "Lower end: brick open drain; upper end: RCC box culvert or covered channel"
+      },
+      "typical_quantity": {
+        "low": 150,
+        "high": 2500,
+        "note": "A typical ward-level drain scheme: 150 m to 2,500 m"
+      },
+      "confidence": "medium",
+      "assumptions": [
+        "Brick-masonry or RCC open/covered drain",
+        "Excludes earthwork disposal beyond 50 m lead",
+        "Includes manhole/inspection chamber at every 30 m for covered drains",
+        "Higher end applies to RCC box culvert with road reinstatement"
+      ]
+    },
+
+    "borewell": {
+      "label": "Borewell / Tube-well / Hand Pump / Water Supply Scheme",
+      "keywords": [
+        "borewell", "bore well", "tube well", "tubewell", "hand pump",
+        "handpump", "drinking water", "water supply", "overhead tank",
+        "jal", "paani", "submersible pump", "piped water", "kuaan",
+        "well", "water tank", "nal jal"
+      ],
+      "unit": "installation",
+      "unit_label": "installation (complete unit)",
+      "rate_inr": {
+        "low": 80000,
+        "high": 1200000,
+        "note": "Lower end: basic hand pump; upper end: motorised borewell + overhead tank + piped distribution"
+      },
+      "typical_quantity": {
+        "low": 1,
+        "high": 15,
+        "note": "Single installation to a village cluster scheme with multiple points"
+      },
+      "confidence": "medium",
+      "assumptions": [
+        "Includes drilling (up to 200 ft depth), casing pipe, pump, and outlet",
+        "Motorised borewell includes submersible pump, control panel, and pressure vessel",
+        "Overhead tank scheme includes tank, pump house, and distribution mains",
+        "Actual cost varies significantly with local geological conditions and depth required"
+      ]
+    },
+
+    "other": {
+      "label": "Other / Unclassified Work",
+      "keywords": [],
+      "unit": "lump sum",
+      "unit_label": "lump sum (unclassified)",
+      "rate_inr": {
+        "low": 50000,
+        "high": 10000000,
+        "note": "Wide range reflects category uncertainty"
+      },
+      "typical_quantity": {
+        "low": 1,
+        "high": 1
+      },
+      "confidence": "low",
+      "assumptions": [
+        "Work category could not be matched to a known MPLAD work type",
+        "Very wide range reflects uncertainty — manual review of description is essential",
+        "Confidence is LOW; do not use this estimate for any scoring without human review"
+      ]
+    }
+
+  },
+
+  "state_cost_index": {
+    "_schema_note": "Multiplicative factor applied to base rates. 1.00 = national average baseline. Source: prototype approximation — replace with state-specific PWD SoR factors.",
+    "Andaman and Nicobar Islands": 1.35,
+    "Andhra Pradesh": 1.02,
+    "Arunachal Pradesh": 1.45,
+    "Assam": 0.95,
+    "Bihar": 0.87,
+    "Chandigarh": 1.10,
+    "Chhattisgarh": 0.90,
+    "Dadra and Nagar Haveli and Daman and Diu": 1.05,
+    "Delhi": 1.28,
+    "Goa": 1.18,
+    "Gujarat": 1.05,
+    "Haryana": 1.06,
+    "Himachal Pradesh": 1.22,
+    "Jammu and Kashmir": 1.20,
+    "Jharkhand": 0.90,
+    "Karnataka": 1.10,
+    "Kerala": 1.15,
+    "Ladakh": 1.55,
+    "Lakshadweep": 1.40,
+    "Madhya Pradesh": 0.92,
+    "Maharashtra": 1.16,
+    "Manipur": 1.30,
+    "Meghalaya": 1.28,
+    "Mizoram": 1.35,
+    "Nagaland": 1.32,
+    "Odisha": 0.90,
+    "Puducherry": 1.05,
+    "Punjab": 1.04,
+    "Rajasthan": 0.94,
+    "Sikkim": 1.40,
+    "Tamil Nadu": 1.08,
+    "Telangana": 1.06,
+    "Tripura": 1.15,
+    "Uttar Pradesh": 0.90,
+    "Uttarakhand": 1.18,
+    "West Bengal": 1.00,
+    "default": 1.00
+  }
+}

@@ -74,19 +74,20 @@ services:
     ports:
       - "8081:8081"
     environment:
-      DATABASE_URL: postgresql://mplad_user:mplad_secret@postgres:5432/mplad
-      SERVICE_PORT: "8081"
+      DATABASE_URL:            postgresql://mplad_user:mplad_secret@postgres:5432/mplad
+      COST_ESTIMATOR_URL:      http://cost-estimator:8084
+      COST_ESTIMATOR_TIMEOUT_S: "5"
     networks:
       - mplad_net
     depends_on:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/health || exit 1"]
-      interval: 15s
-      timeout: 5s
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8081/health')\""]
+      interval: 20s
+      timeout: 8s
       retries: 3
-      start_period: 10s
+      start_period: 60s
 
   # ── Image Engine ───────────────────────────────────────────────────────────
   image-engine:
@@ -135,3 +136,21 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+
+  # ── Cost Estimator ─────────────────────────────────────────────────────────
+  cost-estimator:
+    build:
+      context: ./services/cost-estimator
+      dockerfile: Dockerfile
+    container_name: mplad_cost_estimator
+    restart: unless-stopped
+    ports:
+      - "8084:8084"
+    networks:
+      - mplad_net
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8084/health')\""]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
