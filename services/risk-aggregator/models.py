@@ -124,6 +124,30 @@ class ImageTimelineAnalysisModel(BaseModel):
     )
 
 
+# ── Risk Assessment & Stage Indicator Models ─────────────────────────────────
+
+class RiskFactorModel(BaseModel):
+    type: str  # "financial" | "nlp_similarity" | "image_degradation"
+    score: float
+    reason: str
+
+
+class StageIndicatorModel(BaseModel):
+    stage: str  # "approval_process" | "execution_delivery"
+    flagged: bool = True
+    overview: str
+
+
+class ProjectRiskResponse(BaseModel):
+    project_id: str
+    overall_risk_score: float
+    risk_level: RiskLevel
+    risk_factors: List[RiskFactorModel] = Field(default_factory=list)
+    recommended_action: str
+    stage_indicator: List[StageIndicatorModel] = Field(default_factory=list)
+    note: Optional[str] = None
+
+
 # ── Project Model ────────────────────────────────────────────────────────────
 
 class ProjectDetailModel(BaseModel):

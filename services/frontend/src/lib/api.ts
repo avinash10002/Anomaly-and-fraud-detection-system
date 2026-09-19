@@ -15,10 +15,12 @@ import type {
   ProjectListResult,
   ProjectType,
   ProjectWithRisk,
+  ProjectRiskData,
   ReviewStatus,
   RiskBreakdown,
   RiskLevel,
   SimilarProject,
+  StageIndicatorEntry,
   UserRole,
 } from "./types";
 
@@ -360,6 +362,15 @@ function mapProjectDetail(item: any): ProjectDetail {
         reviewerNotes: fl.reviewer_notes,
       }))
     : undefined;
+  const rawStageIndicators = item.stage_indicator || item.stageIndicator;
+  const stageIndicator: StageIndicatorEntry[] | undefined = Array.isArray(rawStageIndicators)
+    ? rawStageIndicators.map((st: any) => ({
+        stage: st.stage,
+        flagged: Boolean(st.flagged),
+        overview: st.overview,
+      }))
+    : undefined;
+  const stageNote: string | null | undefined = item.stage_note ?? item.note ?? undefined;
 
   return {
     ...base,
@@ -368,6 +379,8 @@ function mapProjectDetail(item: any): ProjectDetail {
     inspectionCaptures,
     riskBreakdown,
     flags,
+    stageIndicator,
+    stageNote,
     reviewerNotes: item.reviewer_notes,
     reviewerId: item.reviewer_id,
   };
@@ -646,6 +659,40 @@ export async function getProjectById(
         : "All parameters align with benchmark standards.",
   };
 
+  const approvalFlagged =
+    allFlags.some(
+      (f) =>
+        (f.sourceEngine === "financial" || f.sourceEngine === "nlp") &&
+        (f.score ?? 0) >= 0.7
+    ) || isHighAnomaly;
+
+  const deliveryFlagged = allFlags.some(
+    (f) => f.sourceEngine === "image" && (f.score ?? 0) >= 0.7
+  );
+
+  const stageIndicator: StageIndicatorEntry[] = [];
+  if (approvalFlagged) {
+    stageIndicator.push({
+      stage: "approval_process",
+      flagged: true,
+      overview:
+        "This pattern is commonly associated with irregularities in how the project was proposed or sanctioned — it does not identify any individual or agency.",
+    });
+  }
+  if (deliveryFlagged) {
+    stageIndicator.push({
+      stage: "execution_delivery",
+      flagged: true,
+      overview:
+        "This pattern is commonly associated with issues in how the work was actually carried out — it does not identify any individual or agency.",
+    });
+  }
+
+  const stageNote =
+    approvalFlagged && deliveryFlagged
+      ? "Multiple process stages show flagged patterns; review both."
+      : null;
+
   const detail: ProjectDetail = {
     ...base,
     financialAnalysis,
@@ -653,11 +700,62 @@ export async function getProjectById(
     inspectionCaptures,
     riskBreakdown,
     flags: role === "citizen" ? allFlags.map((f) => ({ ...f, reviewerId: undefined, reviewerNotes: undefined })) : allFlags,
+    stageIndicator,
+    stageNote,
     reviewerNotes: role === "citizen" ? undefined : "Flagged for comprehensive verification by audit panel.",
     reviewerId: role === "citizen" ? undefined : "AUDIT-OFFICIAL-402",
   };
 
   return delay(detail);
+}
+
+/**
+ * Fetch project risk assessment and process stage indicators.
+ */
+export async function getProjectRisk(id: string): Promise<ProjectRiskData | null> {
+  try {
+    const res = await fetch(`${API_BASE}/projects/${encodeURIComponent(id)}/risk`, {
+      cache: "no-store",
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        projectId: data.project_id,
+        overallRiskScore: data.overall_risk_score,
+        riskLevel: data.risk_level,
+        riskFactors: data.risk_factors || [],
+        recommendedAction: data.recommended_action,
+        stageIndicator: (data.stage_indicator || []).map((s: any) => ({
+          stage: s.stage,
+          flagged: Boolean(s.flagged),
+          overview: s.overview,
+        })),
+        note: data.note ?? null,
+      };
+    }
+  } catch {
+    // Backend unavailable: fallback
+  }
+
+  const detail = await getProjectById(id);
+  if (!detail) return null;
+
+  return {
+    projectId: id,
+    overallRiskScore: detail.riskScore ?? 0.05,
+    riskLevel: detail.riskLevel,
+    riskFactors: (detail.flags || []).map((f) => ({
+      type: f.sourceEngine,
+      score: f.score ?? 0.5,
+      reason: f.reasonText,
+    })),
+    recommendedAction:
+      detail.riskLevel === "high"
+        ? "Prioritize on-site physical verification and independent financial audit before further fund disbursement."
+        : "Routine monitoring and administrative review; no immediate escalation required.",
+    stageIndicator: detail.stageIndicator || [],
+    note: detail.stageNote ?? null,
+  };
 }
 
 /**

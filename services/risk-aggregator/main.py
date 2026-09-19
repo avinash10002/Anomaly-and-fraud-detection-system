@@ -42,10 +42,13 @@ from models import (
     ProjectDetailModel,
     ProjectListItemModel,
     ProjectListResponse,
+    ProjectRiskResponse,
     ReviewStatus,
     RiskCount,
+    RiskFactorModel,
     RiskLevel,
     SimilarProjectModel,
+    StageIndicatorModel,
     StateSummary,
     ConstituencySummary,
     StatusCount,
@@ -858,6 +861,182 @@ def get_project_detail(
         financial_analysis=financial_analysis,
         similar_projects=similar_projects,
         image_timeline=image_timeline,
+    )
+
+
+
+@app.get("/projects/{project_id}/risk", response_model=ProjectRiskResponse, tags=["Projects"])
+@app.get("/api/v1/projects/{project_id}/risk", response_model=ProjectRiskResponse, tags=["Projects"])
+def get_project_risk(project_id: str):
+    """
+    Detailed project risk assessment with stage indicators and recommended actions.
+    Maps risk factors to process stages (approval_process vs. execution_delivery).
+    Adheres strictly to hedged, non-accusatory audit compliance standards.
+    """
+    proj = next((p for p in STORE_PROJECTS if p["id"] == project_id), None)
+    if not proj and DATABASE_URL:
+        try:
+            from db import PostgresExecutor, PostgresRepository
+            executor = PostgresExecutor(DATABASE_URL)
+            if executor.is_available():
+                repo = PostgresRepository(executor)
+                proj = repo.get_project_detail(project_id)
+        except Exception as err:
+            log.warning("Database fallback lookup failed for %s: %s", project_id, err)
+
+    if not proj:
+        raise HTTPException(status_code=404, detail=f"Project {project_id} not found.")
+
+    # 1. Collect risk factors from flags
+    p_flags = [f for f in STORE_FLAGS.values() if f.get("project_id") == project_id]
+
+    risk_factors: List[RiskFactorModel] = []
+    seen_types = set()
+
+    for flag in p_flags:
+        engine = str(flag.get("source_engine", "")).lower()
+        score = float(flag.get("score") or 0.88)
+        reason = flag.get("reason_text", "")
+
+        factor_type = None
+        if engine == "financial":
+            factor_type = "financial"
+        elif engine == "nlp":
+            factor_type = "nlp_similarity"
+        elif engine == "image":
+            factor_type = "image_degradation"
+
+        if factor_type and factor_type not in seen_types:
+            seen_types.add(factor_type)
+            risk_factors.append(
+                RiskFactorModel(
+                    type=factor_type,
+                    score=score,
+                    reason=reason,
+                )
+            )
+
+    # 2. Fallback factors from project metrics if not already covered by flags
+    cost = float(proj.get("cost", 0))
+    median = float(proj.get("median_benchmark", 500000.0))
+    ratio = cost / median if median > 0 else 1.0
+
+    if "financial" not in seen_types and ratio > 1.5:
+        fin_score = 0.94 if ratio > 5.0 else 0.78
+        risk_factors.append(
+            RiskFactorModel(
+                type="financial",
+                score=fin_score,
+                reason=f"Project allocation (Rs. {cost:,.2f}) deviates significantly ({ratio:.1f}x) from benchmark median standards.",
+            )
+        )
+        seen_types.add("financial")
+
+    captures = [c for c in STORE_CAPTURES if c.get("project_id") == project_id]
+    has_pothole = any(c.get("defect_class") == "pothole" for c in captures)
+    has_crack = any(c.get("defect_class") == "crack" for c in captures)
+
+    if "image_degradation" not in seen_types and (has_pothole or has_crack):
+        img_score = 0.89 if has_pothole else 0.45
+        risk_factors.append(
+            RiskFactorModel(
+                type="image_degradation",
+                score=img_score,
+                reason=(
+                    "Inspection captures indicate severe structural potholing post-completion."
+                    if has_pothole
+                    else "Minor surface cracking detected in inspection capture."
+                ),
+            )
+        )
+        seen_types.add("image_degradation")
+
+    sim_data = proj.get("similar_projects", [])
+    if "nlp_similarity" not in seen_types and sim_data:
+        top_sim = max(sim_data, key=lambda s: s.get("similarity_score") or 0.0)
+        sim_score = top_sim.get("similarity_score") or 0.85
+        if sim_score >= 0.7:
+            risk_factors.append(
+                RiskFactorModel(
+                    type="nlp_similarity",
+                    score=sim_score,
+                    reason=top_sim.get("reason") or "Work description shares high semantic overlap with peer recommendations.",
+                )
+            )
+            seen_types.add("nlp_similarity")
+
+    # 3. Overall risk score & risk level
+    if risk_factors:
+        overall_score = round(max(f.score for f in risk_factors), 2)
+    else:
+        overall_score = float(proj.get("risk_score") or 0.05)
+
+    if overall_score >= 0.7:
+        risk_level = RiskLevel.HIGH
+    elif overall_score >= 0.3:
+        risk_level = RiskLevel.MEDIUM
+    else:
+        risk_level = RiskLevel.LOW
+
+    # 4. Recommended action based on score threshold (>= 0.7)
+    if any(f.score >= 0.7 for f in risk_factors):
+        recommended_action = (
+            "Prioritize on-site physical verification and independent financial audit before further fund disbursement."
+        )
+    elif risk_factors:
+        recommended_action = "Routine monitoring and administrative review; no immediate escalation required."
+    else:
+        recommended_action = "No intervention required; project parameters align with benchmark standards."
+
+    # 5. Stage indicator mapping
+    # - "financial" and "nlp_similarity" -> "approval_process"
+    # - "image_degradation" -> "execution_delivery"
+    APPROVAL_OVERVIEW = (
+        "This pattern is commonly associated with irregularities in how the project was proposed or sanctioned — it does not identify any individual or agency."
+    )
+    DELIVERY_OVERVIEW = (
+        "This pattern is commonly associated with issues in how the work was actually carried out — it does not identify any individual or agency."
+    )
+
+    approval_flagged = any(
+        f.type in ("financial", "nlp_similarity") and f.score >= 0.7 for f in risk_factors
+    )
+    delivery_flagged = any(
+        f.type == "image_degradation" and f.score >= 0.7 for f in risk_factors
+    )
+
+    stage_indicator: List[StageIndicatorModel] = []
+    note: Optional[str] = None
+
+    if approval_flagged:
+        stage_indicator.append(
+            StageIndicatorModel(
+                stage="approval_process",
+                flagged=True,
+                overview=APPROVAL_OVERVIEW,
+            )
+        )
+
+    if delivery_flagged:
+        stage_indicator.append(
+            StageIndicatorModel(
+                stage="execution_delivery",
+                flagged=True,
+                overview=DELIVERY_OVERVIEW,
+            )
+        )
+
+    if approval_flagged and delivery_flagged:
+        note = "Multiple process stages show flagged patterns; review both."
+
+    return ProjectRiskResponse(
+        project_id=project_id,
+        overall_risk_score=overall_score,
+        risk_level=risk_level,
+        risk_factors=risk_factors,
+        recommended_action=recommended_action,
+        stage_indicator=stage_indicator,
+        note=note,
     )
 
 

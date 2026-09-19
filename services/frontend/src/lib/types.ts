@@ -94,12 +94,34 @@ export interface RiskBreakdown {
   rationale: string;
 }
 
+export interface StageIndicatorEntry {
+  stage: "approval_process" | "execution_delivery" | string;
+  flagged: boolean;
+  overview: string;
+}
+
+export interface ProjectRiskData {
+  projectId: string;
+  overallRiskScore: number;
+  riskLevel: RiskLevel;
+  riskFactors: Array<{
+    type: string;
+    score: number;
+    reason: string;
+  }>;
+  recommendedAction: string;
+  stageIndicator: StageIndicatorEntry[];
+  note?: string | null;
+}
+
 export interface ProjectDetail extends ProjectWithRisk {
   financialAnalysis?: FinancialAnalysis;
   similarProjects?: SimilarProject[];
   inspectionCaptures?: InspectionCapture[];
   riskBreakdown?: RiskBreakdown;
   flags?: AnomalyFlag[];
+  stageIndicator?: StageIndicatorEntry[];
+  stageNote?: string | null;
   reviewerNotes?: string;
   reviewerId?: string;
 }

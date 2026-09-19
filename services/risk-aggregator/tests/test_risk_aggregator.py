@@ -112,3 +112,62 @@ def test_administrative_map(client):
     assert len(states) >= 3
     for s in states:
         assert len(s["constituencies"]) >= 1
+
+
+def test_project_risk_single_stage_approval(client):
+    pid = "feaa76a4-cbf6-5482-8e84-ecb5600c3f9d"
+    res = client.get(f"/projects/{pid}/risk")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["project_id"] == pid
+    assert data["overall_risk_score"] >= 0.7
+    assert data["risk_level"] == "high"
+    assert len(data["risk_factors"]) >= 1
+    assert any(f["type"] == "financial" and f["score"] >= 0.7 for f in data["risk_factors"])
+    assert len(data["stage_indicator"]) == 1
+    assert data["stage_indicator"][0]["stage"] == "approval_process"
+    assert data["stage_indicator"][0]["flagged"] is True
+    assert "irregularities in how the project was proposed or sanctioned" in data["stage_indicator"][0]["overview"]
+    assert data["note"] is None
+
+
+def test_project_risk_single_stage_delivery(client):
+    pid = "b503d0a8-c311-5409-b365-5ade19ce3e2f"
+    res = client.get(f"/projects/{pid}/risk")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["project_id"] == pid
+    assert len(data["stage_indicator"]) == 1
+    assert data["stage_indicator"][0]["stage"] == "execution_delivery"
+    assert data["stage_indicator"][0]["flagged"] is True
+    assert "issues in how the work was actually carried out" in data["stage_indicator"][0]["overview"]
+    assert data["note"] is None
+
+
+def test_project_risk_multi_stage(client):
+    pid = "e7becbea-467f-5e0d-a910-fe1e740972ba"
+    res = client.get(f"/projects/{pid}/risk")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["project_id"] == pid
+    assert len(data["stage_indicator"]) == 2
+    stages = [s["stage"] for s in data["stage_indicator"]]
+    assert "approval_process" in stages
+    assert "execution_delivery" in stages
+    assert data["note"] == "Multiple process stages show flagged patterns; review both."
+
+
+def test_project_risk_low_risk_empty_stage_indicator(client):
+    pid = "ce266c84-add9-59bb-b4ac-9fe61e2bf98d"
+    res = client.get(f"/projects/{pid}/risk")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["project_id"] == pid
+    assert data["risk_level"] == "low"
+    assert data["stage_indicator"] == []
+    assert data["note"] is None
+
+
+def test_project_risk_not_found(client):
+    res = client.get("/projects/00000000-0000-0000-0000-000000000000/risk")
+    assert res.status_code == 404

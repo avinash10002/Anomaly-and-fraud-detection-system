@@ -294,6 +294,7 @@ The REST API contract is documented under [`api/openapi.yaml`](file:///d:/Progra
 - `GET /api/v1/dashboard/stats`: Returns national totals, risk distribution counts, and state summaries.
 - `GET /api/v1/projects`: Filter projects by `state`, `constituency`, `category`, `status`, `risk_level`, or keyword search.
 - `GET /api/v1/projects/{id}`: Detailed project view including inspection images, NLP similarities, and financial variance analysis.
+- `GET /projects/{id}/risk`: Detailed risk assessment, factor breakdown, recommended action, and hedged `stage_indicator` array (`approval_process` vs. `execution_delivery`).
 - `PATCH /api/v1/anomaly-flags/{id}`: Official endpoint to **Confirm** or **Dismiss** a flagged anomaly with reviewer notes.
 - `POST /api/v1/audit-assistant/query`: Executes natural language analytical queries across the dataset.
 - `POST /api/auth/send-otp`: Sends a one-time login passcode to the official's registered email.

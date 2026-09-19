@@ -483,6 +483,65 @@ export default function ProjectDetailPage() {
         )}
       </section>
 
+      {/* ── SECTION: PROCESS STAGE OVERVIEW ────────────────────────────── */}
+      {project.stageIndicator && project.stageIndicator.filter((s) => s.flagged).length > 0 && (
+        <section className="panel p-5">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+            <div className="flex items-center gap-2">
+              <span className="flex h-7 w-7 items-center justify-center rounded bg-slate-100 text-slate-700 text-xs font-bold">
+                ⇄
+              </span>
+              <h2 className="font-display text-lg font-semibold text-ink">
+                Process Stage Overview
+              </h2>
+            </div>
+            <span className="text-xs text-ink-muted">
+              Lifecycle Pattern Mapping
+            </span>
+          </div>
+
+          {/* Top-level note when multiple process stages are flagged */}
+          {project.stageNote && (
+            <div className="mb-4 flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-700">
+              <span className="inline-block text-slate-400">ℹ️</span>
+              <span className="font-medium text-slate-700">{project.stageNote}</span>
+            </div>
+          )}
+
+          {/* Individual stage indicator cards */}
+          <div className="grid gap-3 sm:grid-cols-2">
+            {project.stageIndicator.map((item) => {
+              if (!item.flagged) return null;
+              const label =
+                item.stage === "approval_process"
+                  ? "Approval Process"
+                  : item.stage === "execution_delivery"
+                  ? "Execution & Delivery"
+                  : item.stage;
+
+              return (
+                <div
+                  key={item.stage}
+                  className="rounded-lg border border-slate-200 bg-slate-50/60 p-4 transition-colors"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-700">
+                      {label}
+                    </span>
+                    <span className="rounded-full bg-slate-200/70 px-2 py-0.5 text-[10px] font-medium text-slate-600">
+                      Inference Pattern
+                    </span>
+                  </div>
+                  <p className="text-xs leading-relaxed text-slate-600 font-normal">
+                    {item.overview}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       {/* ── SECTION 5: REVIEW ACTIONS (OFFICIALS ONLY) ─────────────────── */}
       {isOfficial && (
         <section className="panel p-5">
