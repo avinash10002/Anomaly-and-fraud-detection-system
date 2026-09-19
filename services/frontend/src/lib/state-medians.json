@@ -1,0 +1,458 @@
+{
+  "Haryana::Repair and Renovation": {
+    "state": "Haryana",
+    "category": "Repair and Renovation",
+    "median": 500000.0,
+    "peerCount": 33
+  },
+  "West Bengal::Repair and Renovation": {
+    "state": "West Bengal",
+    "category": "Repair and Renovation",
+    "median": 700000.0,
+    "peerCount": 13
+  },
+  "Kerala::Trust and Society": {
+    "state": "Kerala",
+    "category": "Trust and Society",
+    "median": 600000.0,
+    "peerCount": 1
+  },
+  "Assam::Normal/Others": {
+    "state": "Assam",
+    "category": "Normal/Others",
+    "median": 373100.0,
+    "peerCount": 1696
+  },
+  "Uttarakhand::Normal/Others": {
+    "state": "Uttarakhand",
+    "category": "Normal/Others",
+    "median": 177500.0,
+    "peerCount": 1786
+  },
+  "Maharashtra::Trust and Society": {
+    "state": "Maharashtra",
+    "category": "Trust and Society",
+    "median": 2500000.0,
+    "peerCount": 2
+  },
+  "Bihar::Repair and Renovation": {
+    "state": "Bihar",
+    "category": "Repair and Renovation",
+    "median": 500000.0,
+    "peerCount": 35
+  },
+  "Rajasthan::Repair and Renovation": {
+    "state": "Rajasthan",
+    "category": "Repair and Renovation",
+    "median": 500000.0,
+    "peerCount": 28
+  },
+  "Maharashtra::Normal/Others": {
+    "state": "Maharashtra",
+    "category": "Normal/Others",
+    "median": 800000.0,
+    "peerCount": 811
+  },
+  "Mizoram::Repair and Renovation": {
+    "state": "Mizoram",
+    "category": "Repair and Renovation",
+    "median": 500000.0,
+    "peerCount": 5
+  },
+  "Lakshadweep::Repair and Renovation": {
+    "state": "Lakshadweep",
+    "category": "Repair and Renovation",
+    "median": 2270688.0,
+    "peerCount": 1
+  },
+  "Madhya Pradesh::Normal/Others": {
+    "state": "Madhya Pradesh",
+    "category": "Normal/Others",
+    "median": 299000.0,
+    "peerCount": 2494
+  },
+  "Odisha::Repair and Renovation": {
+    "state": "Odisha",
+    "category": "Repair and Renovation",
+    "median": 300000.0,
+    "peerCount": 73
+  },
+  "Sikkim::Normal/Others": {
+    "state": "Sikkim",
+    "category": "Normal/Others",
+    "median": 800000.0,
+    "peerCount": 108
+  },
+  "Karnataka::Repair and Renovation": {
+    "state": "Karnataka",
+    "category": "Repair and Renovation",
+    "median": 500000.0,
+    "peerCount": 42
+  },
+  "Punjab::Repair and Renovation": {
+    "state": "Punjab",
+    "category": "Repair and Renovation",
+    "median": 200000.0,
+    "peerCount": 51
+  },
+  "Jammu And Kashmir::Bar and Associations": {
+    "state": "Jammu And Kashmir",
+    "category": "Bar and Associations",
+    "median": 50000.0,
+    "peerCount": 1
+  },
+  "Jammu And Kashmir::Trust and Society": {
+    "state": "Jammu And Kashmir",
+    "category": "Trust and Society",
+    "median": 1767500.0,
+    "peerCount": 2
+  },
+  "Karnataka::Trust and Society": {
+    "state": "Karnataka",
+    "category": "Trust and Society",
+    "median": 500000.0,
+    "peerCount": 49
+  },
+  "Punjab::Trust and Society": {
+    "state": "Punjab",
+    "category": "Trust and Society",
+    "median": 600000.0,
+    "peerCount": 20
+  },
+  "Andhra Pradesh::Repair and Renovation": {
+    "state": "Andhra Pradesh",
+    "category": "Repair and Renovation",
+    "median": 500000.0,
+    "peerCount": 34
+  },
+  "Jammu And Kashmir::Repair and Renovation": {
+    "state": "Jammu And Kashmir",
+    "category": "Repair and Renovation",
+    "median": 250000.0,
+    "peerCount": 12
+  },
+  "Odisha::Trust and Society": {
+    "state": "Odisha",
+    "category": "Trust and Society",
+    "median": 700000.0,
+    "peerCount": 2
+  },
+  "West Bengal::Normal/Others": {
+    "state": "West Bengal",
+    "category": "Normal/Others",
+    "median": 200000.0,
+    "peerCount": 2513
+  },
+  "Haryana::Normal/Others": {
+    "state": "Haryana",
+    "category": "Normal/Others",
+    "median": 500000.0,
+    "peerCount": 1819
+  },
+  "Nagaland::Normal/Others": {
+    "state": "Nagaland",
+    "category": "Normal/Others",
+    "median": 1250000.0,
+    "peerCount": 26
+  },
+  "Kerala::Normal/Others": {
+    "state": "Kerala",
+    "category": "Normal/Others",
+    "median": 300000.0,
+    "peerCount": 583
+  },
+  "Odisha::Normal/Others": {
+    "state": "Odisha",
+    "category": "Normal/Others",
+    "median": 250000.0,
+    "peerCount": 4757
+  },
+  "Karnataka::Normal/Others": {
+    "state": "Karnataka",
+    "category": "Normal/Others",
+    "median": 500000.0,
+    "peerCount": 3815
+  },
+  "Punjab::Normal/Others": {
+    "state": "Punjab",
+    "category": "Normal/Others",
+    "median": 246400.0,
+    "peerCount": 3253
+  },
+  "Sikkim::Repair and Renovation": {
+    "state": "Sikkim",
+    "category": "Repair and Renovation",
+    "median": 2000000.0,
+    "peerCount": 4
+  },
+  "Madhya Pradesh::Repair and Renovation": {
+    "state": "Madhya Pradesh",
+    "category": "Repair and Renovation",
+    "median": 800000.0,
+    "peerCount": 5
+  },
+  "Telangana::Normal/Others": {
+    "state": "Telangana",
+    "category": "Normal/Others",
+    "median": 350000.0,
+    "peerCount": 2518
+  },
+  "Tamil Nadu::Normal/Others": {
+    "state": "Tamil Nadu",
+    "category": "Normal/Others",
+    "median": 500000.0,
+    "peerCount": 4573
+  },
+  "Meghalaya::Normal/Others": {
+    "state": "Meghalaya",
+    "category": "Normal/Others",
+    "median": 200000.0,
+    "peerCount": 265
+  },
+  "Puducherry::Normal/Others": {
+    "state": "Puducherry",
+    "category": "Normal/Others",
+    "median": 1650000.0,
+    "peerCount": 36
+  },
+  "Jharkhand::Repair and Renovation": {
+    "state": "Jharkhand",
+    "category": "Repair and Renovation",
+    "median": 800000.0,
+    "peerCount": 21
+  },
+  "Goa::Normal/Others": {
+    "state": "Goa",
+    "category": "Normal/Others",
+    "median": 1500000.0,
+    "peerCount": 172
+  },
+  "Uttar Pradesh::Repair and Renovation": {
+    "state": "Uttar Pradesh",
+    "category": "Repair and Renovation",
+    "median": 635000.0,
+    "peerCount": 11
+  },
+  "Gujarat::Repair and Renovation": {
+    "state": "Gujarat",
+    "category": "Repair and Renovation",
+    "median": 1500000.0,
+    "peerCount": 9
+  },
+  "Himachal Pradesh::Bar and Associations": {
+    "state": "Himachal Pradesh",
+    "category": "Bar and Associations",
+    "median": 50000.0,
+    "peerCount": 1
+  },
+  "Chhattisgarh::Normal/Others": {
+    "state": "Chhattisgarh",
+    "category": "Normal/Others",
+    "median": 500000.0,
+    "peerCount": 1587
+  },
+  "Gujarat::Trust and Society": {
+    "state": "Gujarat",
+    "category": "Trust and Society",
+    "median": 700000.0,
+    "peerCount": 39
+  },
+  "Himachal Pradesh::Repair and Renovation": {
+    "state": "Himachal Pradesh",
+    "category": "Repair and Renovation",
+    "median": 137500.0,
+    "peerCount": 34
+  },
+  "Uttar Pradesh::Trust and Society": {
+    "state": "Uttar Pradesh",
+    "category": "Trust and Society",
+    "median": 745000.0,
+    "peerCount": 12
+  },
+  "Tripura::Normal/Others": {
+    "state": "Tripura",
+    "category": "Normal/Others",
+    "median": 391000.0,
+    "peerCount": 164
+  },
+  "Arunachal Pradesh::Repair and Renovation": {
+    "state": "Arunachal Pradesh",
+    "category": "Repair and Renovation",
+    "median": 1150000.0,
+    "peerCount": 2
+  },
+  "Uttar Pradesh::Bar and Associations": {
+    "state": "Uttar Pradesh",
+    "category": "Bar and Associations",
+    "median": 50000.0,
+    "peerCount": 1
+  },
+  "Delhi::Normal/Others": {
+    "state": "Delhi",
+    "category": "Normal/Others",
+    "median": 800000.0,
+    "peerCount": 72
+  },
+  "Maharashtra::Repair and Renovation": {
+    "state": "Maharashtra",
+    "category": "Repair and Renovation",
+    "median": 700000.0,
+    "peerCount": 3
+  },
+  "Rajasthan::Trust and Society": {
+    "state": "Rajasthan",
+    "category": "Trust and Society",
+    "median": 1500000.0,
+    "peerCount": 15
+  },
+  "Andaman And Nicobar Islands::Normal/Others": {
+    "state": "Andaman And Nicobar Islands",
+    "category": "Normal/Others",
+    "median": 1500000.0,
+    "peerCount": 59
+  },
+  "Mizoram::Normal/Others": {
+    "state": "Mizoram",
+    "category": "Normal/Others",
+    "median": 500000.0,
+    "peerCount": 114
+  },
+  "Lakshadweep::Normal/Others": {
+    "state": "Lakshadweep",
+    "category": "Normal/Others",
+    "median": 1004103.0,
+    "peerCount": 41
+  },
+  "Jammu And Kashmir::Normal/Others": {
+    "state": "Jammu And Kashmir",
+    "category": "Normal/Others",
+    "median": 243000.0,
+    "peerCount": 837
+  },
+  "Andhra Pradesh::Normal/Others": {
+    "state": "Andhra Pradesh",
+    "category": "Normal/Others",
+    "median": 500000.0,
+    "peerCount": 3910
+  },
+  "Madhya Pradesh::Trust and Society": {
+    "state": "Madhya Pradesh",
+    "category": "Trust and Society",
+    "median": 1000000.0,
+    "peerCount": 5
+  },
+  "Jharkhand::Normal/Others": {
+    "state": "Jharkhand",
+    "category": "Normal/Others",
+    "median": 300000.0,
+    "peerCount": 2238
+  },
+  "Uttar Pradesh::Normal/Others": {
+    "state": "Uttar Pradesh",
+    "category": "Normal/Others",
+    "median": 224500.0,
+    "peerCount": 6592
+  },
+  "Gujarat::Normal/Others": {
+    "state": "Gujarat",
+    "category": "Normal/Others",
+    "median": 400000.0,
+    "peerCount": 1706
+  },
+  "Meghalaya::Repair and Renovation": {
+    "state": "Meghalaya",
+    "category": "Repair and Renovation",
+    "median": 400000.0,
+    "peerCount": 1
+  },
+  "Telangana::Repair and Renovation": {
+    "state": "Telangana",
+    "category": "Repair and Renovation",
+    "median": 500000.0,
+    "peerCount": 8
+  },
+  "Tamil Nadu::Repair and Renovation": {
+    "state": "Tamil Nadu",
+    "category": "Repair and Renovation",
+    "median": 1800000.0,
+    "peerCount": 3
+  },
+  "Puducherry::Repair and Renovation": {
+    "state": "Puducherry",
+    "category": "Repair and Renovation",
+    "median": 1500000.0,
+    "peerCount": 2
+  },
+  "Chhattisgarh::Trust and Society": {
+    "state": "Chhattisgarh",
+    "category": "Trust and Society",
+    "median": 500000.0,
+    "peerCount": 1
+  },
+  "Rajasthan::Normal/Others": {
+    "state": "Rajasthan",
+    "category": "Normal/Others",
+    "median": 500000.0,
+    "peerCount": 3816
+  },
+  "Bihar::Normal/Others": {
+    "state": "Bihar",
+    "category": "Normal/Others",
+    "median": 500000.0,
+    "peerCount": 5671
+  },
+  "Uttarakhand::Repair and Renovation": {
+    "state": "Uttarakhand",
+    "category": "Repair and Renovation",
+    "median": 150000.0,
+    "peerCount": 38
+  },
+  "Assam::Repair and Renovation": {
+    "state": "Assam",
+    "category": "Repair and Renovation",
+    "median": 300000.0,
+    "peerCount": 39
+  },
+  "Haryana::Trust and Society": {
+    "state": "Haryana",
+    "category": "Trust and Society",
+    "median": 500000.0,
+    "peerCount": 52
+  },
+  "Haryana::Bar and Associations": {
+    "state": "Haryana",
+    "category": "Bar and Associations",
+    "median": 75000.0,
+    "peerCount": 2
+  },
+  "Himachal Pradesh::Normal/Others": {
+    "state": "Himachal Pradesh",
+    "category": "Normal/Others",
+    "median": 200000.0,
+    "peerCount": 1205
+  },
+  "Arunachal Pradesh::Normal/Others": {
+    "state": "Arunachal Pradesh",
+    "category": "Normal/Others",
+    "median": 500000.0,
+    "peerCount": 330
+  },
+  "Manipur::Normal/Others": {
+    "state": "Manipur",
+    "category": "Normal/Others",
+    "median": 1000000.0,
+    "peerCount": 73
+  },
+  "Chhattisgarh::Repair and Renovation": {
+    "state": "Chhattisgarh",
+    "category": "Repair and Renovation",
+    "median": 750000.0,
+    "peerCount": 6
+  },
+  "Tripura::Repair and Renovation": {
+    "state": "Tripura",
+    "category": "Repair and Renovation",
+    "median": 3088218.0,
+    "peerCount": 1
+  }
+}

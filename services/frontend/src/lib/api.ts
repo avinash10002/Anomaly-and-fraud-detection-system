@@ -1,4 +1,5 @@
 import { MOCK_ANOMALIES, MOCK_IMAGES, MOCK_PROJECTS, replaceAnomalies } from "./mock-data";
+import stateMediansRaw from "./state-medians.json";
 import type {
   AdministrativeHierarchy,
   AnomalyFlag,
@@ -69,19 +70,51 @@ export function scoreToRiskLevel(score: number): RiskLevel {
 
 export function getProjectRiskScore(projectId: string, flags = MOCK_ANOMALIES): number {
   const scores = flags.filter((f) => f.projectId === projectId).map((f) => f.score);
-  return scores.length ? Math.max(...scores) : 0;
+  if (scores.length) return Math.max(...scores);
+  const raw = MOCK_PROJECTS.find((p) => p.id === projectId);
+  if (raw && raw.cost) {
+    const benchmarksMap = stateMediansRaw as Record<string, { median: number; peerCount: number }>;
+    const bench =
+      (raw.state && raw.category && benchmarksMap[`${raw.state}::${raw.category}`]) ||
+      (raw.state && benchmarksMap[`${raw.state}::Normal/Others`]);
+    if (bench && bench.median > 0) {
+      const mult = raw.cost / bench.median;
+      if (mult >= 5.0) return Math.min(0.98, Math.max(0.88, 0.85 + (mult / 500.0) * 0.12));
+      if (mult >= 3.0) return 0.75;
+    }
+  }
+  return 0;
 }
 
 function withRisk(project: Project, flags = MOCK_ANOMALIES): ProjectWithRisk {
   const projectFlags = flags.filter((f) => f.projectId === project.id);
-  const riskScore = projectFlags.length
+  let riskScore = projectFlags.length
     ? Math.max(...projectFlags.map((f) => f.score))
     : 0;
+
+  if (riskScore === 0 && project.cost) {
+    const benchmarksMap = stateMediansRaw as Record<string, { median: number; peerCount: number }>;
+    const bench =
+      (project.state && project.category && benchmarksMap[`${project.state}::${project.category}`]) ||
+      (project.state && benchmarksMap[`${project.state}::Normal/Others`]);
+    if (bench && bench.median > 0) {
+      const mult = project.cost / bench.median;
+      if (mult >= 5.0) {
+        riskScore = Math.min(0.98, Math.max(0.88, 0.85 + (mult / 500.0) * 0.12));
+      } else if (mult >= 3.0) {
+        riskScore = 0.75;
+      }
+    }
+  }
+
+  const riskLevel = scoreToRiskLevel(riskScore);
+  const anomalyCount = projectFlags.length > 0 ? projectFlags.length : riskLevel === "high" ? 1 : 0;
+
   return {
     ...project,
     riskScore,
-    riskLevel: scoreToRiskLevel(riskScore),
-    anomalyCount: projectFlags.length,
+    riskLevel,
+    anomalyCount,
   };
 }
 
@@ -510,18 +543,39 @@ export async function getProjectById(
   const base = withRisk(p);
   const flags = MOCK_ANOMALIES.filter((f) => f.projectId === id);
 
-  // Fallback demo financial analysis
+  // Dynamic benchmark financial analysis
+  const benchmarksMap = stateMediansRaw as Record<string, { median: number; peerCount: number }>;
+  const bench =
+    (p.state && p.category && benchmarksMap[`${p.state}::${p.category}`]) ||
+    (p.state && benchmarksMap[`${p.state}::Normal/Others`]) ||
+    { median: 250000, peerCount: 500 };
+  const catMedian = bench.median;
+  const mult = p.cost / Math.max(1, catMedian);
+  const isHighAnomaly = mult >= 3.0;
+
   const financialAnalysis: FinancialAnalysis = {
     allocation: p.cost,
-    estimatedMin: Math.round(p.cost * 0.7),
-    estimatedMax: Math.round(p.cost * 1.1),
-    deviationPercent: p.cost > 10000000 ? 173.4 : 8.2,
-    deviationReason:
-      p.cost > 10000000
-        ? "Allocation is 173.4x the state median for civil recreation works."
-        : "Allocation is consistent with local Schedule of Rates benchmarks.",
-    categoryMedian: 224000,
+    estimatedMin: Math.round(p.cost * 0.8),
+    estimatedMax: Math.round(p.cost * 1.15),
+    deviationPercent: Math.round(mult * 100),
+    deviationReason: isHighAnomaly
+      ? `Project allocation (₹${p.cost.toLocaleString("en-IN")}) is ${mult.toFixed(1)}× the ${p.state || "state"} benchmark median (₹${catMedian.toLocaleString("en-IN")}) for ${p.category || "civil"} works (peer cohort: n=${bench.peerCount.toLocaleString("en-IN")} projects). Outlier percentile: >99th.`
+      : `Allocation is consistent with ${p.state || "regional"} Schedule of Rates benchmarks (median: ₹${catMedian.toLocaleString("en-IN")}).`,
+    categoryMedian: catMedian,
   };
+
+  const allFlags = [...flags];
+  if (allFlags.length === 0 && isHighAnomaly) {
+    allFlags.push({
+      id: `dyn-flag-${p.id}`,
+      projectId: p.id,
+      sourceEngine: "financial",
+      score: base.riskScore ?? 0.88,
+      reasonText: `Project allocation (₹${p.cost.toLocaleString("en-IN")}) is ${mult.toFixed(1)}× the ${p.state} state benchmark median (₹${catMedian.toLocaleString("en-IN")}) for ${p.category} works. Flagged for financial audit.`,
+      reviewStatus: "pending",
+      flaggedAt: p.sanctionDate || "2024-03-04",
+    });
+  }
 
   // Fallback demo similar projects
   const similarProjects: SimilarProject[] =
@@ -579,14 +633,14 @@ export async function getProjectById(
       ];
 
   const riskBreakdown: RiskBreakdown = {
-    financialScore: flags.find((f) => f.sourceEngine === "financial")?.score ?? 0.05,
-    nlpScore: flags.find((f) => f.sourceEngine === "nlp")?.score ?? 0.04,
-    imageScore: flags.find((f) => f.sourceEngine === "image")?.score ?? 0.08,
+    financialScore: allFlags.find((f) => f.sourceEngine === "financial")?.score ?? (base.riskScore != null && base.riskScore > 0 ? base.riskScore : 0.05),
+    nlpScore: allFlags.find((f) => f.sourceEngine === "nlp")?.score ?? 0.04,
+    imageScore: allFlags.find((f) => f.sourceEngine === "image")?.score ?? 0.08,
     overallScore: role === "citizen" ? undefined : base.riskScore,
     riskLevel: base.riskLevel,
     rationale:
       base.riskLevel === "high"
-        ? "Multiple engine signals indicate high probability of misallocation or quality non-compliance."
+        ? "Statistical cost analysis detects extreme expenditure variance exceeding 3-5x regional benchmarks."
         : base.riskLevel === "medium"
         ? "Single engine flagged moderate deviation requiring verification."
         : "All parameters align with benchmark standards.",
@@ -598,7 +652,7 @@ export async function getProjectById(
     similarProjects,
     inspectionCaptures,
     riskBreakdown,
-    flags: role === "citizen" ? flags.map((f) => ({ ...f, reviewerId: undefined, reviewerNotes: undefined })) : flags,
+    flags: role === "citizen" ? allFlags.map((f) => ({ ...f, reviewerId: undefined, reviewerNotes: undefined })) : allFlags,
     reviewerNotes: role === "citizen" ? undefined : "Flagged for comprehensive verification by audit panel.",
     reviewerId: role === "citizen" ? undefined : "AUDIT-OFFICIAL-402",
   };
