@@ -55,6 +55,16 @@ app.use((req, res, next) => {
 // Routes
 // ---------------------------------------------------------------------------
 
+// Root service info
+app.get("/", (req, res) => {
+  res.status(200).json({
+    status:  "online",
+    service: "mplads-auth-service",
+    healthCheck: "/health",
+    message: "MPLADS Authentication Microservice is running.",
+  });
+});
+
 // Health probe — no auth required
 app.get("/health", (req, res) => {
   res.status(200).json({
