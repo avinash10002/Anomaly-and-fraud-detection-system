@@ -1,0 +1,16 @@
+.git
+.gitignore
+.next
+node_modules
+**/node_modules
+**/__pycache__
+**/.pytest_cache
+*.pyc
+*.pyo
+*.pyd
+.env*
+!.env.example
+data/
+MPLADS.csv
+yolov8n.pt
+.kilo
