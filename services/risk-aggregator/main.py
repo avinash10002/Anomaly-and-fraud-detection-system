@@ -70,7 +70,7 @@ logging.basicConfig(
 log = logging.getLogger("risk_aggregator")
 
 load_dotenv()
-SERVICE_PORT = int(os.getenv("SERVICE_PORT", "8080"))
+SERVICE_PORT = int(os.getenv("PORT", os.getenv("SERVICE_PORT", "8080")))
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 ENABLE_AUDIT_ASSISTANT = os.getenv("ENABLE_AUDIT_ASSISTANT", "true").lower() in ("true", "1")
 
