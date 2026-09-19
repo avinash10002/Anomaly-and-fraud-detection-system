@@ -101,7 +101,7 @@ router.post(
       db.prepare("DELETE FROM otp_tokens WHERE id = ?").run(tokenId);
       return res.status(502).json({
         error:   "EMAIL_SEND_FAILED",
-        message: "Could not dispatch the login code. Please check SMTP configuration or try again.",
+        message: `Could not dispatch the login code: ${err.message}. Please verify SMTP configuration.`,
       });
     }
 

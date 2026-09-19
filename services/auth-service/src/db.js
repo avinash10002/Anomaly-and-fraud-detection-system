@@ -103,6 +103,26 @@ const dbProxy = {
     } catch {
       // column already exists
     }
+
+    // Auto-seed default officials so accounts are never missing on fresh cloud instances
+    try {
+      const DEFAULT_OFFICIALS = [
+        ["off-001", "avinashgoel1568@gmail.com", "Avinash Goel", "admin"],
+        ["off-002", "avinahgoel12@gmail.com", "Avinash Goel (Admin)", "admin"],
+        ["off-003", "avinashgoel6654@gmail.com", "Avinash Goel (Reviewer)", "reviewer"],
+        ["off-004", "arjun.sharma@mplads.test", "Arjun Sharma", "admin"],
+        ["off-005", "priya.nair@mplads.test", "Priya Nair", "reviewer"],
+        ["off-006", "vikram.rathod@mplads.test", "Vikram Rathod", "reviewer"],
+        ["off-007", "sunita.deshpande@mplads.test", "Sunita Deshpande", "reviewer"],
+        ["off-008", "rahul.kaswan@mplads.test", "Rahul Kaswan", "reviewer"],
+      ];
+      for (const [id, email, name, role] of DEFAULT_OFFICIALS) {
+        _db.run("INSERT OR IGNORE INTO officials (id, email, name, role) VALUES (?, ?, ?, ?)", [id, email.toLowerCase(), name, role]);
+      }
+    } catch (seedErr) {
+      console.warn("[auth-db] Auto-seed warning:", seedErr.message);
+    }
+
     saveSync();
     return this;
   },

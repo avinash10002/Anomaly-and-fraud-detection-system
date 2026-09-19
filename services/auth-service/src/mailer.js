@@ -1,13 +1,8 @@
 /**
  * src/mailer.js
  * -------------
- * Nodemailer transport configuration.
- * Credentials are loaded exclusively from environment variables (never hardcoded).
- *
- * In local/test mode (NODE_ENV=development) with test credentials
- * (Mailtrap / Ethereal), the raw OTP is printed ONLY to the server console
- * so developers can test without a real inbox — this line is guarded by
- * NODE_ENV checks and is never present in production builds.
+ * Nodemailer transport configuration with dual-port fallback (465 SSL / 587 STARTTLS),
+ * forced IPv4 family resolution (critical for cloud hosts like Render), and connection timeouts.
  */
 
 "use strict";
@@ -15,25 +10,41 @@
 const nodemailer = require("nodemailer");
 const config     = require("./config");
 
-// Build the transport once at startup
-const transport = nodemailer.createTransport({
-  host:   config.smtp.host,
-  port:   config.smtp.port,
-  secure: config.smtp.secure,   // true = TLS, false = STARTTLS
-  auth: {
-    user: config.smtp.user,
-    pass: config.smtp.pass,
-  },
-});
+function cleanPass(pass) {
+  return (pass || "").toString().replace(/\s+/g, "");
+}
+
+function makeTransport(port, secure) {
+  return nodemailer.createTransport({
+    host:   config.smtp.host,
+    port:   port,
+    secure: secure,
+    family: 4,               // CRITICAL FOR RENDER: Forces IPv4 to bypass cloud IPv6 connection drops
+    connectionTimeout: 12000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
+    auth: {
+      user: config.smtp.user,
+      pass: cleanPass(config.smtp.pass),
+    },
+    tls: {
+      rejectUnauthorized: false,
+      minVersion: "TLSv1.2",
+    },
+  });
+}
+
+const primaryTransport = makeTransport(config.smtp.port, config.smtp.secure);
+const fallbackPort = config.smtp.port === 465 ? 587 : 465;
+const fallbackSecure = fallbackPort === 465;
+const fallbackTransport = makeTransport(fallbackPort, fallbackSecure);
 
 /**
  * Send an OTP email to a pre-registered official.
- * The raw otp string is passed in only to compose the email body.
- * It is NEVER logged at INFO level or returned in any API response.
  *
  * @param {string} toEmail   - recipient address
  * @param {string} toName    - recipient display name
- * @param {string} otp       - plaintext 6-digit code (used only to compose body)
+ * @param {string} otp       - plaintext 6-digit code
  * @param {number} expiresIn - seconds until expiry (for display in email)
  */
 async function sendOtpEmail(toEmail, toName, otp, expiresIn = 300) {
@@ -105,16 +116,28 @@ async function sendOtpEmail(toEmail, toName, otp, expiresIn = 300) {
 
   const text = `Your MPLADS Audit login code: ${otp}\n\nExpires in ${minutesStr} minutes. Do not share this code.`;
 
-  const info = await transport.sendMail({
-    from:    config.smtp.from,
-    to:      toEmail,
-    subject: `${otp} — Your MPLADS Audit login code`,
-    text,
-    html,
-  });
+  let info;
+  try {
+    info = await primaryTransport.sendMail({
+      from:    config.smtp.from,
+      to:      toEmail,
+      subject: `${otp} — Your MPLADS Audit login code`,
+      text,
+      html,
+    });
+  } catch (primaryErr) {
+    console.warn(`[auth-service] Primary SMTP on port ${config.smtp.port} failed: ${primaryErr.message}. Attempting fallback port ${fallbackPort}...`);
+    info = await fallbackTransport.sendMail({
+      from:    config.smtp.from,
+      to:      toEmail,
+      subject: `${otp} — Your MPLADS Audit login code`,
+      text,
+      html,
+    });
+  }
 
   console.log(`[auth-service] OTP email dispatched successfully to ${toEmail}`);
   return { info };
 }
 
-module.exports = { transport, sendOtpEmail };
+module.exports = { transport: primaryTransport, sendOtpEmail };
