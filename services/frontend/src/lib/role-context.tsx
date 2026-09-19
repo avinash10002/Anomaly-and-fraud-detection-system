@@ -43,7 +43,7 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await fetch("/api/auth/me", {
         method: "GET",
-        headers: { "Content-Type": "application/json" },
+        credentials: "include",   // ← must send the httpOnly mplads_auth cookie
         cache: "no-store",
       });
 
@@ -85,7 +85,8 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     }
     return null;
-  }, [official]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // no deps — stable reference, avoids infinite re-render when 401 clears `official`
 
   useEffect(() => {
     void checkSession();

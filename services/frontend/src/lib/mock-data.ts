@@ -6,44 +6,48 @@ export const MOCK_PROJECTS: Project[] = rawRecords as unknown as Project[];
 
 /** Mutable in-memory store — Confirm/Dismiss updates this array. */
 export let MOCK_ANOMALIES: AnomalyFlag[] = [
-  // ── Demo Cases Anomaly Flags (source_type = 'DEMO_SYNTHETIC') ──────────────
+  // ── Demo Cases Anomaly Flags (DEMO_SYNTHETIC — matches demo_seed_v2.sql) ───
+  // Case 2: FINANCIAL ANOMALY — Rs 7,33,000 = 3.26x UP median (Rs 2,24,500)
   {
     id: "77777777-0000-0000-0002-000000000001",
     projectId: "feaa76a4-cbf6-5482-8e84-ecb5600c3f9d",
     sourceEngine: "financial",
     score: 0.94,
     reasonText:
-      "[DEMO_SYNTHETIC] Project allocation (Rs. 3.89 Cr) is 173.4x the state category median (Rs. 2.24 L). Outlier score in top 99.8th percentile for Uttar Pradesh civil works.",
+      "[DEMO_SYNTHETIC] Project allocation (Rs. 7,33,000) is 3.26× the Uttar Pradesh state-category median (Rs. 2,24,500) for Normal/Others works (n=6,592 peer projects). Outlier percentile rank: 97.8th. No approved deviation note found in IDA records.",
     reviewStatus: "pending",
-    flaggedAt: "2024-01-15",
+    flaggedAt: "2023-11-12",
   },
+  // Case 3: NLP DUPLICATE — cosine similarity 0.96 with peer project c1e1a7cf
   {
     id: "77777777-0000-0000-0003-000000000001",
     projectId: "fa527ded-f8b7-518e-9ba0-72556cf0f7c9",
     sourceEngine: "nlp",
     score: 0.92,
     reasonText:
-      "[DEMO_SYNTHETIC] Near-identical work description (cosine similarity 0.96) found in project c1e1a7cf-26ab-5167-92a1-9790ca3f069e within the same block (JHAJHA) and sanction date.",
+      "[DEMO_SYNTHETIC] Near-identical work description (cosine similarity 0.96) found in project c1e1a7cf-26ab-5167-92a1-9790ca3f069e within the same block (JHAJHA, DARBHANGA, Bihar) and same recommended date (2023-07-22). Only the village name differs. Possible duplicate sanctioning without independent site-specific bill of quantities.",
     reviewStatus: "pending",
-    flaggedAt: "2023-11-20",
+    flaggedAt: "2023-12-01",
   },
+  // Case 4: IMAGE DEGRADATION — none → crack (conf 0.78) → pothole (conf 0.91) in 8 months
   {
     id: "77777777-0000-0000-0004-000000000001",
     projectId: "b503d0a8-c311-5409-b365-5ade19ce3e2f",
     sourceEngine: "image",
     score: 0.89,
     reasonText:
-      "[DEMO_SYNTHETIC] Chronological degradation analysis detected progressive breakdown from intact surface to structural potholes (confidence 0.91) within 8 months post-construction.",
+      "[DEMO_SYNTHETIC] Chronological degradation analysis detected progressive structural breakdown: (1) 2023-04-10 intact asphalt, no defect; (2) 2023-08-15 transverse cracking by Mapillary (conf 0.78); (3) 2023-12-05 structural pothole by site upload (conf 0.91). Total 8 months post-completion. Inconsistent with 5–7 year bituminous surface lifespan.",
     reviewStatus: "pending",
-    flaggedAt: "2023-12-10",
+    flaggedAt: "2023-12-05",
   },
+  // Case 5: COMBINED HIGH RISK — all three engines
   {
     id: "77777777-0000-0000-0005-000000000001",
     projectId: "e7becbea-467f-5e0d-a910-fe1e740972ba",
     sourceEngine: "financial",
     score: 0.96,
     reasonText:
-      "[DEMO_SYNTHETIC] Project allocation of Rs. 1.34 Cr is 59.8x the state median (Rs. 2.24 L) for rural road works in Uttar Pradesh.",
+      "[DEMO_SYNTHETIC] Allocation Rs. 5,95,000 is 2.65× UP state-category median Rs. 2,24,500 (n=6,592). Same MP (Dr Ashok Bajpai) sanctioned project feaa76a4 at 3.26× median in same quarter — systematic over-recommendation pattern detected.",
     reviewStatus: "confirmed",
     flaggedAt: "2023-08-01",
   },
@@ -53,7 +57,7 @@ export let MOCK_ANOMALIES: AnomalyFlag[] = [
     sourceEngine: "nlp",
     score: 0.88,
     reasonText:
-      "[DEMO_SYNTHETIC] Work scope is identical boilerplate repeated across 148 other sanctioned projects in Gorakhpur without site-specific bill of quantities.",
+      "[DEMO_SYNTHETIC] Work description (cosine similarity 0.94) found verbatim in 6 other UP projects by same MP in FY 2023-24, without site-specific bill of quantities or locational variation in IDA records. Pattern consistent with boilerplate copy-paste.",
     reviewStatus: "pending",
     flaggedAt: "2023-09-15",
   },
@@ -63,7 +67,7 @@ export let MOCK_ANOMALIES: AnomalyFlag[] = [
     sourceEngine: "image",
     score: 0.91,
     reasonText:
-      "[DEMO_SYNTHETIC] Chronological degradation analysis confirms rapid failure: road transitioned to heavy potholes (confidence 0.93) within 8 months of sanction.",
+      "[DEMO_SYNTHETIC] Rapid failure timeline: (1) 2023-05-12 intact; (2) 2023-09-20 cracking conf 0.82; (3) 2024-01-18 structural pothole + washout conf 0.93. 8-month failure inconsistent with standard bituminous lifespan.",
     reviewStatus: "pending",
     flaggedAt: "2024-01-20",
   },
