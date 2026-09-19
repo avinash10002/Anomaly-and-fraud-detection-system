@@ -76,7 +76,8 @@ function LoginForm() {
         setCountdown(300);
         setTimerActive(true);
         setInfoMessage(
-          "A 6-digit one-time passcode has been sent to your email. Please check your inbox (and spam folder)."
+          data.message ||
+            "A 6-digit one-time passcode has been sent to your email. Please check your inbox (and spam folder)."
         );
       } else if (res.status === 429) {
         setError(data.message || "Too many OTP requests. Please wait a few minutes before trying again.");
