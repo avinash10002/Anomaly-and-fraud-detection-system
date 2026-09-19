@@ -799,68 +799,14 @@ export function getProjectTitleSync(projectId: string): string {
 
 /**
  * Query the AI Audit Assistant with natural-language questions.
+ * Runs entirely offline using the local rule-based NLP engine.
+ * No external API calls — eliminates all network timeout errors.
  */
 export async function askAuditAssistant(
   question: string,
   role: UserRole = "official"
 ): Promise<AuditAssistantResponse> {
-  try {
-    const res = await fetch(`${API_BASE}/assistant/query?role=${encodeURIComponent(role)}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-User-Role": role,
-      },
-      body: JSON.stringify({ question, role }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      return {
-        question: data.question,
-        answer: data.answer,
-        citations: (data.citations || []).map((c: any) => ({
-          projectId: c.project_id,
-          title: c.title,
-          state: c.state,
-          constituency: c.constituency,
-          allocation: c.allocation,
-          category: c.category,
-          flags: c.flags || [],
-        })),
-        intent: data.intent,
-        recordsFound: data.records_found,
-        safeAuditLanguage: data.safe_audit_language ?? true,
-        disclaimer:
-          data.disclaimer ||
-          "This assistant surfaces anomaly indicators and statistical outliers for audit review. It does not determine fraud.",
-      };
-    }
-  } catch {
-    // Fallback if backend is unavailable
-  }
-
-  return delay({
-    question,
-    answer:
-      "Analysis of database records retrieved 1 highest-allocation road projects in Punjab from the database:\n1. Construction of concrete link road from GT Road to village canal — Rs. 4.20 Cr (Ludhiana, Punjab) (Flagged for review: 1 anomaly indicator).\n\nThese records have been surfaced based on allocation amounts exceeding historical peer group baselines.",
-    citations: [
-      {
-        projectId: "88888888-0000-0000-0001-000000000001",
-        title: "Construction of concrete link road from GT Road to village canal",
-        state: "Punjab",
-        constituency: "Ludhiana",
-        allocation: 42000000,
-        category: "Roads and Bridges",
-        flags: [
-          "Project allocation (Rs. 4.20 Cr) is 3.8x the state category median (Rs. 1.10 Cr) for rural road works in Punjab.",
-        ],
-      },
-    ],
-    intent: "EXPENSIVE_PROJECTS",
-    recordsFound: 1,
-    safeAuditLanguage: true,
-    disclaimer:
-      "This assistant surfaces anomaly indicators and statistical outliers for audit review. It does not determine fraud.",
-  });
+  const { runAuditEngine } = await import("./audit-engine");
+  return delay(runAuditEngine(question, role));
 }
 

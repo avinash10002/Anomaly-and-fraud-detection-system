@@ -8,9 +8,14 @@ import { useRole } from "@/lib/role-context";
 import type { AuditAssistantResponse } from "@/lib/types";
 
 const SUGGESTIONS = [
-  "Show unusually expensive road projects in Punjab",
+  "Show most expensive projects in Uttar Pradesh",
   "Which constituencies have the most pending projects?",
-  "Why was project X flagged?",
+  "Show all financial anomalies",
+  "Summarise all anomaly flags",
+  "State-wise project breakdown",
+  "Show stalled projects in Rajasthan",
+  "Duplicate description NLP flags",
+  "Contractor analysis with most flags",
 ];
 
 export function AuditAssistantDrawer({
@@ -70,7 +75,7 @@ export function AuditAssistantDrawer({
                     MPLADS AI Audit Assistant
                   </h2>
                   <p className="text-[11px] text-ink-muted">
-                    Safe parameterized query translation over official records
+                    Rule-based NLP · Offline · Analyses all available MPLADS records
                   </p>
                 </div>
               </div>
@@ -230,7 +235,7 @@ export function AuditAssistantDrawer({
 
           {/* Footer */}
           <div className="border-t border-slate-200 bg-slate-50 px-6 py-3 text-[11px] text-slate-500 flex items-center justify-between">
-            <span>Query execution: Zero string-interpolated SQL</span>
+            <span>Rule-based NLP · 100% Offline · No external API calls</span>
             <span className="font-medium">Strict Compliance Guard</span>
           </div>
         </aside>
