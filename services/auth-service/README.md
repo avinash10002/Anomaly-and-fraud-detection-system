@@ -210,6 +210,10 @@ On success: `req.official = { id, name, role, iat, exp }`
 | `vikram.rathod@mplads.test` | reviewer |
 | `sunita.deshpande@mplads.test` | reviewer |
 | `rahul.kaswan@mplads.test` | reviewer |
+| `amheisenbergsprinciple@gmail.com` | admin |
+| `kanak.s252007@gmail.com` | admin |
+| `nehaksn190@gmail.com` | admin |
+| `prernasubhi123@gmail.com` | admin |
 
 ---
 

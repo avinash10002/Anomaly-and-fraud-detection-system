@@ -54,5 +54,9 @@ CREATE INDEX IF NOT EXISTS idx_otp_official ON otp_tokens(official_id);
 -- ---------------------------------------------------------------------------
 INSERT INTO officials (email, name, role) VALUES
     ('avinahgoel12@gmail.com',         'Avinash Goel (Admin)', 'admin'),
-    ('avinashgoel6654@gmail.com',      'Avinash Goel',       'reviewer'),
+    ('avinashgoel6654@gmail.com',      'Avinash Goel',         'reviewer'),
+    ('amheisenbergsprinciple@gmail.com', 'Admin Heisenberg',     'admin'),
+    ('kanak.s252007@gmail.com',         'Kanak',                'admin'),
+    ('nehaksn190@gmail.com',            'Neha',                 'admin'),
+    ('prernasubhi123@gmail.com',        'Prerna Subhi',         'admin')
 ON CONFLICT (email) DO NOTHING;

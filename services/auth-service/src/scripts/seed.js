@@ -37,6 +37,10 @@ const DEMO_OFFICIALS = [
   { email: "vikram.rathod@mplads.test",      name: "Vikram Rathod",        role: "reviewer" },
   { email: "sunita.deshpande@mplads.test",   name: "Sunita Deshpande",     role: "reviewer" },
   { email: "rahul.kaswan@mplads.test",       name: "Rahul Kaswan",         role: "reviewer" },
+  { email: "amheisenbergsprinciple@gmail.com", name: "Admin Heisenberg",     role: "admin" },
+  { email: "kanak.s252007@gmail.com",         name: "Kanak",                role: "admin" },
+  { email: "nehaksn190@gmail.com",            name: "Neha",                 role: "admin" },
+  { email: "prernasubhi123@gmail.com",        name: "Prerna Subhi",         role: "admin" },
 ];
 
 async function seed() {

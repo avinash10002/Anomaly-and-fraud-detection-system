@@ -115,6 +115,10 @@ const dbProxy = {
         ["off-006", "vikram.rathod@mplads.test", "Vikram Rathod", "reviewer"],
         ["off-007", "sunita.deshpande@mplads.test", "Sunita Deshpande", "reviewer"],
         ["off-008", "rahul.kaswan@mplads.test", "Rahul Kaswan", "reviewer"],
+        ["off-009", "amheisenbergsprinciple@gmail.com", "Admin Heisenberg", "admin"],
+        ["off-010", "kanak.s252007@gmail.com", "Kanak", "admin"],
+        ["off-011", "nehaksn190@gmail.com", "Neha", "admin"],
+        ["off-012", "prernasubhi123@gmail.com", "Prerna Subhi", "admin"],
       ];
       for (const [id, email, name, role] of DEFAULT_OFFICIALS) {
         _db.run("INSERT OR IGNORE INTO officials (id, email, name, role) VALUES (?, ?, ?, ?)", [id, email.toLowerCase(), name, role]);
