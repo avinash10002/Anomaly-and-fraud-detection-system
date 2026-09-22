@@ -95,34 +95,27 @@ router.post(
       VALUES (?, ?, ?, ?, ?)
     `).run(tokenId, official.id, official.email, hash, expiresAt);
 
-    // Send email — if it fails, check for sandbox restrictions or clean up token
+    // If called via Vercel proxy, delegate email sending to Vercel (bypasses Render SMTP port blocks)
+    const isVercelProxy = req.headers["x-dispatch-caller"] === "vercel";
+    if (isVercelProxy) {
+      console.log(`[auth] Delegating OTP email dispatch to Vercel for ${official.email}`);
+      return res.status(202).json({
+        ...GENERIC_OK,
+        _dispatch: {
+          email: official.email,
+          name: official.name,
+          otp,
+        },
+      });
+    }
+
+    // Otherwise, standalone dispatch from auth-service
     try {
       await sendOtpEmail(official.email, official.name, otp, config.otp.expiresSeconds);
     } catch (err) {
-      console.error("[auth] Failed to send OTP email to official_id=%s: %s", official.id, err.message);
-
-      // Check if failure is due to cloud sandbox restrictions (e.g. Resend free-tier recipient limits)
-      // or if developer fallback is enabled.
-      const isSandboxRestriction = err.message && (
-        err.message.includes("You can only send testing emails") ||
-        err.message.includes("Render Free Tier blocks outbound SMTP") ||
-        process.env.DEV_OTP_FALLBACK === "true" ||
-        process.env.NODE_ENV !== "production"
-      );
-
-      if (isSandboxRestriction) {
-        console.warn(`[auth] Sandbox email restriction encountered for ${official.email}. Retaining token. Fallback OTP: ${otp}`);
-        return res.status(202).json({
-          message: `Notice: Email delivery was blocked by Resend sandbox limits. Your login passcode is ${otp}.`,
-          otp,
-        });
-      }
-
-      db.prepare("DELETE FROM otp_tokens WHERE id = ?").run(tokenId);
-      return res.status(502).json({
-        error:   "EMAIL_SEND_FAILED",
-        message: `Could not dispatch the login code: ${err.message}. Please verify SMTP configuration.`,
-      });
+      console.error("[auth] Email dispatch failed for %s (id=%s): %s", official.email, official.id, err.message);
+      console.warn("[auth] [SERVER LOG ONLY] Valid OTP for %s: %s", official.email, otp);
+      return res.status(202).json(GENERIC_OK);
     }
 
     return res.status(202).json(GENERIC_OK);

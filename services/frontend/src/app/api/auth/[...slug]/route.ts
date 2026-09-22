@@ -44,6 +44,8 @@ async function proxyAuth(request: NextRequest, slug: string[]) {
       }
     }
 
+    headers.set("x-dispatch-caller", "vercel");
+
     const backendRes = await fetch(targetUrl, {
       method: request.method,
       headers,
@@ -52,6 +54,21 @@ async function proxyAuth(request: NextRequest, slug: string[]) {
     });
 
     const data = await backendRes.json().catch(() => ({}));
+
+    // If request-otp returned a delegated dispatch, send email directly via Gmail from Vercel
+    if (slug[0] === "request-otp" && data?._dispatch) {
+      const { email, name, otp } = data._dispatch;
+      delete data._dispatch; // Ensure browser never sees dispatch metadata
+
+      try {
+        const { sendOtpFromVercel } = await import("@/lib/mailer");
+        await sendOtpFromVercel(email, name, otp);
+        console.log(`[vercel-mailer] OTP successfully delivered via Gmail to ${email}`);
+      } catch (mailErr: unknown) {
+        const mailMsg = mailErr instanceof Error ? mailErr.message : String(mailErr);
+        console.error(`[vercel-mailer] Failed to send via Gmail to ${email}:`, mailMsg);
+      }
+    }
 
     const clientRes = NextResponse.json(data, {
       status: backendRes.status,
