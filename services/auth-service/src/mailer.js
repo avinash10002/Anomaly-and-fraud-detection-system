@@ -116,62 +116,74 @@ async function sendOtpEmail(toEmail, toName, otp, expiresIn = 300) {
 
   const text = `Your MPLADS Audit login code: ${otp}\n\nExpires in ${minutesStr} minutes. Do not share this code.`;
 
+  const dispatchErrors = [];
+
   // ── 1. HTTP API: Resend (Bypasses cloud SMTP port blocks via standard HTTPS 443) ──
   if (process.env.RESEND_API_KEY) {
-    const resendApiKey = process.env.RESEND_API_KEY.trim();
-    const resendFrom = process.env.RESEND_FROM || "MPLADS Audit <onboarding@resend.dev>";
+    try {
+      const resendApiKey = process.env.RESEND_API_KEY.trim();
+      const resendFrom = process.env.RESEND_FROM || "MPLADS Audit <onboarding@resend.dev>";
 
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${resendApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: resendFrom,
-        to: [toEmail],
-        subject: `${otp} — Your MPLADS Audit login code`,
-        html,
-        text,
-      }),
-    });
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${resendApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: resendFrom,
+          to: [toEmail],
+          subject: `${otp} — Your MPLADS Audit login code`,
+          html,
+          text,
+        }),
+      });
 
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      throw new Error(`Resend API error: ${data.message || res.statusText}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(`Resend API error: ${data.message || res.statusText}`);
+      }
+
+      console.log(`[auth-service] OTP email dispatched via Resend HTTP API to ${toEmail}`);
+      return { info: data };
+    } catch (resendErr) {
+      console.warn(`[auth-service] Resend HTTP dispatch failed for ${toEmail}: ${resendErr.message}. Trying next provider...`);
+      dispatchErrors.push(resendErr.message);
     }
-
-    console.log(`[auth-service] OTP email dispatched via Resend HTTP API to ${toEmail}`);
-    return { info: data };
   }
 
   // ── 2. HTTP API: Brevo (Bypasses cloud SMTP port blocks via standard HTTPS 443) ───
   if (process.env.BREVO_API_KEY) {
-    const brevoKey = process.env.BREVO_API_KEY.trim();
-    const brevoSender = process.env.BREVO_FROM || config.smtp.user;
+    try {
+      const brevoKey = process.env.BREVO_API_KEY.trim();
+      const brevoSender = process.env.BREVO_FROM || config.smtp.user;
 
-    const res = await fetch("https://api.brevo.com/v3/smtp/email", {
-      method: "POST",
-      headers: {
-        "api-key": brevoKey,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        sender: { name: "MPLADS Audit System", email: brevoSender },
-        to: [{ email: toEmail, name: toName }],
-        subject: `${otp} — Your MPLADS Audit login code`,
-        htmlContent: html,
-        textContent: text,
-      }),
-    });
+      const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+          "api-key": brevoKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sender: { name: "MPLADS Audit System", email: brevoSender },
+          to: [{ email: toEmail, name: toName }],
+          subject: `${otp} — Your MPLADS Audit login code`,
+          htmlContent: html,
+          textContent: text,
+        }),
+      });
 
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      throw new Error(`Brevo API error: ${data.message || res.statusText}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(`Brevo API error: ${data.message || res.statusText}`);
+      }
+
+      console.log(`[auth-service] OTP email dispatched via Brevo HTTP API to ${toEmail}`);
+      return { info: data };
+    } catch (brevoErr) {
+      console.warn(`[auth-service] Brevo HTTP dispatch failed for ${toEmail}: ${brevoErr.message}. Trying next provider...`);
+      dispatchErrors.push(brevoErr.message);
     }
-
-    console.log(`[auth-service] OTP email dispatched via Brevo HTTP API to ${toEmail}`);
-    return { info: data };
   }
 
   // ── 3. Standard SMTP Transport (Works on localhost, paid instances, & non-blocked hosts) ──
@@ -195,12 +207,13 @@ async function sendOtpEmail(toEmail, toName, otp, expiresIn = 300) {
         html,
       });
     } catch (fallbackErr) {
+      const apiErrors = dispatchErrors.length > 0 ? ` (Previous API attempts: ${dispatchErrors.join("; ")})` : "";
       if (fallbackErr.message.includes("timeout") || primaryErr.message.includes("timeout")) {
         throw new Error(
-          "SMTP Connection Timeout: Render Free Tier blocks outbound SMTP ports 25, 465, and 587. Use a free HTTP email API key (e.g. RESEND_API_KEY from resend.com) in Render environment variables."
+          `SMTP Connection Timeout: Render Free Tier blocks outbound SMTP ports 25, 465, and 587.${apiErrors}`
         );
       }
-      throw fallbackErr;
+      throw new Error(`${fallbackErr.message}${apiErrors}`);
     }
   }
 

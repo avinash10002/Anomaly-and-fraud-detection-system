@@ -78,6 +78,9 @@ router.post(
 
     // Generate OTP, hash it, store it
     const otp       = generateOtp();
+    if (process.env.NODE_ENV !== "production" || process.env.LOG_DEV_OTP === "true") {
+      console.log(`[auth] Generated OTP for ${official.email}: ${otp}`);
+    }
     const expiresAt = new Date(Date.now() + config.otp.expiresSeconds * 1000).toISOString();
     const hash      = await bcrypt.hash(otp, config.bcryptRounds);
     const tokenId   = uuidv4();
