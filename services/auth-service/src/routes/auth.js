@@ -95,12 +95,29 @@ router.post(
       VALUES (?, ?, ?, ?, ?)
     `).run(tokenId, official.id, official.email, hash, expiresAt);
 
-    // Send email — if it fails, clean up the token and return generic error
+    // Send email — if it fails, check for sandbox restrictions or clean up token
     try {
       await sendOtpEmail(official.email, official.name, otp, config.otp.expiresSeconds);
     } catch (err) {
-      // Log error details server-side (without the OTP value)
       console.error("[auth] Failed to send OTP email to official_id=%s: %s", official.id, err.message);
+
+      // Check if failure is due to cloud sandbox restrictions (e.g. Resend free-tier recipient limits)
+      // or if developer fallback is enabled.
+      const isSandboxRestriction = err.message && (
+        err.message.includes("You can only send testing emails") ||
+        err.message.includes("Render Free Tier blocks outbound SMTP") ||
+        process.env.DEV_OTP_FALLBACK === "true" ||
+        process.env.NODE_ENV !== "production"
+      );
+
+      if (isSandboxRestriction) {
+        console.warn(`[auth] Sandbox email restriction encountered for ${official.email}. Retaining token. Fallback OTP: ${otp}`);
+        return res.status(202).json({
+          message: `Notice: Email delivery was blocked by Resend sandbox limits. Your login passcode is ${otp}.`,
+          otp,
+        });
+      }
+
       db.prepare("DELETE FROM otp_tokens WHERE id = ?").run(tokenId);
       return res.status(502).json({
         error:   "EMAIL_SEND_FAILED",
